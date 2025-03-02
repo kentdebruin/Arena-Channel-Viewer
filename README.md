@@ -56,4 +56,7 @@ git clone https://github.com/kentdebruin/Arena-Channel-Viewer.git
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests! 
+Feel free to submit issues and enhancement requests!
+
+## Latest Update
+- Added gradient overlay to grid view text blocks to indicate overflow content (Updated: 2025-03-02 17:32:22) 
