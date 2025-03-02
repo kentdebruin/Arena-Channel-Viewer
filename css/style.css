@@ -779,3 +779,52 @@ main.fixed-header-visible {
 .modal-loading.hidden {
     display: none;
 }
+
+/* Add mobile styles for modal navigation */
+@media (max-width: 768px) {
+    .modal-nav {
+        top: auto;
+        bottom: 1rem;
+        transform: none;
+        background-color: var(--bg-color);
+        border-radius: 50%;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-prev {
+        left: 1rem;
+    }
+
+    .modal-next {
+        right: 1rem;
+    }
+
+    .modal-close {
+        top: 0.5rem;
+        right: 0.5rem;
+        background-color: var(--bg-color);
+        border-radius: 50%;
+        padding: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+}
+
+/* Add styles for very small screens */
+@media (max-width: 480px) {
+    .modal-nav {
+        padding: 0.75rem;
+    }
+
+    .modal-nav .material-icons {
+        font-size: 24px;
+    }
+
+    .modal-close {
+        padding: 0.5rem;
+    }
+
+    .modal-close .material-icons {
+        font-size: 20px;
+    }
+}
