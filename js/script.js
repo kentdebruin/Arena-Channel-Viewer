@@ -565,34 +565,24 @@ function createModalContent(block) {
     const content = document.createElement('div');
     content.className = 'modal-block-content';
     
+    // Update header content
+    const headerTitle = document.querySelector('.modal-header-title');
+    const headerDate = document.querySelector('.modal-header-date');
+    
+    if (headerTitle) {
+        headerTitle.textContent = block.title || '';
+    }
+    
+    if (headerDate) {
+        headerDate.textContent = block.connected_at ? 
+            `${formatDate(block.connected_at)} at ${formatTime(block.connected_at)}` : '';
+    }
+    
     // Add content based on block type
     switch (block.class) {
         case 'Image':
             if (block.image) {
                 content.classList.add('is-image');
-                
-                // Add image header if title or date exists
-                if (block.title || block.connected_at) {
-                    const header = document.createElement('div');
-                    header.className = 'modal-image-header';
-                    
-                    if (block.title) {
-                        const title = document.createElement('h2');
-                        title.className = 'modal-image-title';
-                        title.textContent = block.title;
-                        header.appendChild(title);
-                    }
-                    
-                    if (block.connected_at) {
-                        const date = document.createElement('div');
-                        date.className = 'modal-image-date';
-                        date.textContent = `${formatDate(block.connected_at)} at ${formatTime(block.connected_at)}`;
-                        header.appendChild(date);
-                    }
-                    
-                    content.appendChild(header);
-                }
-                
                 const img = document.createElement('img');
                 img.src = block.image.display.url;
                 img.alt = block.title || 'Image';
@@ -605,28 +595,6 @@ function createModalContent(block) {
             textContainer.className = 'modal-text-container';
             textContainer.innerHTML = `<p>${block.content}</p>`;
             content.appendChild(textContainer);
-            
-            // Add header for text content
-            if (block.title || block.connected_at) {
-                const header = document.createElement('div');
-                header.className = 'modal-text-header';
-                
-                if (block.title) {
-                    const title = document.createElement('h2');
-                    title.className = 'modal-text-title';
-                    title.textContent = block.title;
-                    header.appendChild(title);
-                }
-                
-                if (block.connected_at) {
-                    const date = document.createElement('div');
-                    date.className = 'modal-text-date';
-                    date.textContent = `${formatDate(block.connected_at)} at ${formatTime(block.connected_at)}`;
-                    header.appendChild(date);
-                }
-                
-                content.appendChild(header);
-            }
             break;
             
         case 'Link':
@@ -639,28 +607,6 @@ function createModalContent(block) {
                 ${block.description ? `<p>${block.description}</p>` : ''}
             `;
             content.appendChild(linkContainer);
-            
-            // Add header for link content
-            if (block.title || block.connected_at) {
-                const header = document.createElement('div');
-                header.className = 'modal-text-header';
-                
-                if (block.title) {
-                    const title = document.createElement('h2');
-                    title.className = 'modal-text-title';
-                    title.textContent = block.title;
-                    header.appendChild(title);
-                }
-                
-                if (block.connected_at) {
-                    const date = document.createElement('div');
-                    date.className = 'modal-text-date';
-                    date.textContent = `${formatDate(block.connected_at)} at ${formatTime(block.connected_at)}`;
-                    header.appendChild(date);
-                }
-                
-                content.appendChild(header);
-            }
             break;
     }
     
