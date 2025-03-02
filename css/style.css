@@ -380,7 +380,7 @@ button:hover {
     }
 
     h1 {
-        font-size: 1.75rem;
+        font-size: 1rem;
     }
 
     .blocks-grid {
@@ -388,11 +388,24 @@ button:hover {
     }
 
     .header-left {
-        justify-content: center;
+        justify-content: flex-start;
     }
 
     .search-container {
         margin: 0;
+    }
+
+    .modal-block-title {
+        font-size: 1.25rem;
+        padding: 0 1rem;
+    }
+
+    .diary-date {
+        font-size: 1rem;
+    }
+
+    .channel-info h2 {
+        font-size: 0.875rem;
     }
 }
 
@@ -403,6 +416,15 @@ button:hover {
 
     button {
         width: 100%;
+    }
+
+    .modal-block-title {
+        font-size: 1.125rem;
+        padding: 0 1rem;
+    }
+
+    .diary-date {
+        font-size: 0.875rem;
     }
 }
 
