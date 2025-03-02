@@ -2,6 +2,8 @@
 
 A modern, responsive web application for viewing Are.na channels with an elegant interface. This viewer provides an enhanced way to browse and interact with Are.na channel content.
 
+🌐 **[View Live Website](https://kentdebruin.github.io/Arena-Channel-Viewer/)**
+
 ## Features
 
 - 🔍 Search and view any Are.na channel by slug
