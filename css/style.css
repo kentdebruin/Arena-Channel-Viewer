@@ -549,25 +549,131 @@ button:hover {
     background-color: var(--secondary-text);
 }
 
-.modal-close {
+.modal-header {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background-color: var(--bg-color);
+    z-index: 1001;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    height: 64px;
+}
+
+.modal-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: calc(100% - 64px);
+}
+
+.modal-header-title {
+    font-size: 1rem;
+    color: var(--text-color);
+    margin: 0;
+    font-weight: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modal-header-date {
+    font-size: 0.875rem;
+    color: var(--secondary-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modal-close {
+    position: relative;
     background: transparent;
     border: none;
-    padding: 0.5rem;
+    padding: 0;
     cursor: pointer;
-    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    color: var(--text-color);
+    margin: -2px -2px -2px 0;
     border-radius: 4px;
 }
 
 .modal-close:hover {
-    background-color: var(--hover-bg);
+    background-color: rgba(0, 0, 0, 0.1);
 }
 
 .modal-close .material-icons {
     font-size: 24px;
     color: var(--text-color);
+}
+
+@media (max-width: 768px) {
+    .modal-header {
+        height: 56px;
+        padding: 0.75rem;
+    }
+
+    .modal-header-info {
+        max-width: calc(100% - 56px);
+    }
+
+    .modal-close {
+        width: 44px;
+        height: 44px;
+        margin: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-header {
+        height: 48px;
+        padding: 0.5rem;
+    }
+
+    .modal-header-info {
+        max-width: calc(100% - 44px);
+    }
+
+    .modal-close {
+        width: 44px;
+        height: 44px;
+        margin: 0;
+    }
+
+    .modal-close .material-icons {
+        font-size: 20px;
+    }
+}
+
+.modal-body {
+    margin-top: 4rem; /* Space for fixed header */
+    padding: 1rem;
+    width: 100%;
+    height: calc(100% - 4rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Hide the old headers since we're using the fixed one */
+.modal-image-header, 
+.modal-text-header {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .modal-body {
+        margin-top: 3.5rem;
+        height: calc(100% - 3.5rem);
+    }
 }
 
 /* Modal Navigation */
@@ -577,11 +683,15 @@ button:hover {
     transform: translateY(-50%);
     background: transparent;
     border: none;
-    padding: 0.75rem;
+    padding: 1rem;
     cursor: pointer;
     z-index: 1001;
     transition: opacity 0.2s ease;
     opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px; /* Fixed width for better positioning */
 }
 
 .modal-nav:hover {
@@ -596,30 +706,15 @@ button:hover {
 }
 
 .modal-prev {
-    left: 1rem;
-    border-radius: 4px;
+    left: 0;
 }
 
 .modal-next {
-    right: 1rem;
-    border-radius: 4px;
+    right: 0;
 }
 
 .modal-nav.hidden {
     display: none;
-}
-
-.modal-body {
-    flex: 1;
-    margin: 0 auto;
-    padding: 2rem;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
 }
 
 .modal-image-header, .modal-text-header {
@@ -805,30 +900,26 @@ main.fixed-header-visible {
 /* Add mobile styles for modal navigation */
 @media (max-width: 768px) {
     .modal-nav {
-        top: auto;
-        bottom: 1rem;
-        transform: none;
-        background-color: var(--bg-color);
-        border-radius: 50%;
+        background: transparent;
+        box-shadow: none;
         padding: 1rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        width: 48px;
     }
 
     .modal-prev {
-        left: 1rem;
+        left: 0;
     }
 
     .modal-next {
-        right: 1rem;
+        right: 0;
     }
 
     .modal-close {
-        top: 0.5rem;
-        right: 0.5rem;
+        top: 0;
+        right: 0;
         background-color: var(--bg-color);
-        border-radius: 50%;
-        padding: 0.75rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        border-radius: 0 0 0 8px;
+        padding: 1rem;
     }
 }
 
@@ -843,7 +934,7 @@ main.fixed-header-visible {
     }
 
     .modal-close {
-        padding: 0.5rem;
+        padding: 0.75rem;
     }
 
     .modal-close .material-icons {
