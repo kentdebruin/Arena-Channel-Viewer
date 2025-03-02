@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channels</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Add Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>Channels</h1>
+            </div>
+            <div class="search-container">
+                <input type="text" id="channelInput" placeholder="Enter Are.na channel slug">
+                <button class="search-icon" id="searchButton">
+                    <span class="material-icons">arrow_forward</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Fixed header that appears on scroll -->
+        <div class="fixed-header">
+            <h2 class="fixed-header-title" id="fixedChannelTitle"></h2>
+            <div class="view-toggle">
+                <button id="fixedGridViewBtn" class="view-btn" title="Grid View">
+                    <span class="material-icons">grid_view</span>
+                </button>
+                <button id="fixedDiaryViewBtn" class="view-btn" title="Diary View">
+                    <span class="material-icons">view_agenda</span>
+                </button>
+            </div>
+        </div>
+
+        <main>
+            <!-- Loading indicator -->
+            <div id="loading" class="loading hidden">Loading...</div>
+            
+            <!-- Error message container -->
+            <div id="error" class="error hidden"></div>
+            
+            <!-- Channel info -->
+            <div id="channelInfo" class="channel-info hidden">
+                <div class="channel-text">
+                    <h2 id="channelTitle"></h2>
+                    <p id="channelDescription"></p>
+                </div>
+                <div class="view-toggle">
+                    <button id="gridViewBtn" class="view-btn active" title="Grid View">
+                        <span class="material-icons">grid_view</span>
+                    </button>
+                    <button id="diaryViewBtn" class="view-btn" title="Diary View">
+                        <span class="material-icons">view_agenda</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid view -->
+            <div id="blocksGrid" class="blocks-grid"></div>
+
+            <!-- Diary view -->
+            <div id="blocksDiary" class="blocks-diary hidden"></div>
+        </main>
+    </div>
+
+    <!-- Modal for full-screen view -->
+    <div id="blockModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">
+                <span class="material-icons">close</span>
+            </button>
+            <button class="modal-nav modal-prev" title="Previous">
+                <span class="material-icons">chevron_left</span>
+            </button>
+            <button class="modal-nav modal-next" title="Next">
+                <span class="material-icons">chevron_right</span>
+            </button>
+            <div class="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html> 
