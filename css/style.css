@@ -983,3 +983,186 @@ main.fixed-header-visible {
         font-size: 20px;
     }
 }
+
+/* Header link styles */
+.channels-link {
+    margin-left: 1rem;
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.channels-link:hover {
+    background-color: var(--hover-bg);
+}
+
+/* Channels Overview Page */
+.channels-overview {
+    margin-top: 1rem;
+}
+
+.channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.channel-card {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--bg-color);
+    cursor: pointer;
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.channel-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.channel-card-thumbnail {
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    position: relative;
+    background-color: var(--loading-bg);
+}
+
+.channel-card-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.channel-card:hover .channel-card-thumbnail img {
+    transform: scale(1.05);
+}
+
+.channel-card-placeholder {
+    width: 100%;
+    height: 100%;
+    background-color: var(--loading-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.channel-card-content {
+    padding: 1rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.channel-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+.channel-card-description {
+    font-size: 0.875rem;
+    color: var(--secondary-text);
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    flex-grow: 1;
+}
+
+.channel-card-meta {
+    font-size: 0.75rem;
+    color: var(--secondary-text);
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto;
+}
+
+.channel-card-count {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.channel-card-count .material-icons {
+    font-size: 0.875rem;
+}
+
+/* Responsive adjustments for channels grid */
+@media (max-width: 768px) {
+    .channels-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .channel-card-thumbnail {
+        height: 150px;
+    }
+    
+    .channels-link {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .channels-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .channel-card-thumbnail {
+        height: 120px;
+    }
+    
+    .channel-card-content {
+        padding: 0.75rem;
+    }
+    
+    .channel-card-title {
+        font-size: 0.875rem;
+    }
+    
+    .channel-card-description {
+        font-size: 0.75rem;
+        -webkit-line-clamp: 1;
+    }
+    
+    .channels-link {
+        display: none;
+    }
+}
+
+/* Back to channels button */
+.back-to-channels-btn {
+    padding: 0.5rem;
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    text-decoration: none;
+    margin-left: 0.5rem;
+}
+
+.back-to-channels-btn:hover {
+    background-color: var(--hover-bg);
+}
+
+.back-to-channels-btn .material-icons {
+    font-size: 1.25rem;
+}

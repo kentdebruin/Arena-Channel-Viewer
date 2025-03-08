@@ -60,17 +60,27 @@ elements.modalNext.addEventListener('click', () => navigateModal(1));
 elements.fixedGridViewBtn.addEventListener('click', () => switchView('grid'));
 elements.fixedDiaryViewBtn.addEventListener('click', () => switchView('diary'));
 
-// Load default channel on page load
+// Load channel on page load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Try to fetch the default channel first
-        const response = await fetch(API.channel(state.defaultChannel));
-        if (!response.ok) {
-            throw new Error('Default channel not found');
+        // Check for channel parameter in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const channelParam = urlParams.get('channel');
+        
+        if (channelParam) {
+            // If channel parameter exists, use it
+            elements.channelInput.value = channelParam;
+            await handleSearch();
+        } else {
+            // Otherwise, try to fetch the default channel
+            const response = await fetch(API.channel(state.defaultChannel));
+            if (!response.ok) {
+                throw new Error('Default channel not found');
+            }
+            // Only set the input value and load if the channel exists
+            elements.channelInput.value = state.defaultChannel;
+            await handleSearch();
         }
-        // Only set the input value and load if the channel exists
-        elements.channelInput.value = state.defaultChannel;
-        await handleSearch();
     } catch (error) {
         hideLoading();
         showError('Please enter an Are.na channel slug or URL to begin');
@@ -657,15 +667,15 @@ async function switchView(view) {
     await loadInitialContent();
 }
 
-// Debounce helper function
+// Utility function for debouncing
 function debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
+    return function() {
+        const context = this;
+        const args = arguments;
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => {
+            func.apply(context, args);
+        }, wait);
     };
 }

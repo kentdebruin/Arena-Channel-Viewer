@@ -13,6 +13,7 @@
         <header>
             <div class="header-left">
                 <h1>Channels</h1>
+                <a href="channels.html" class="channels-link">Browse Channels</a>
             </div>
             <div class="search-container">
                 <input type="text" id="channelInput" placeholder="Enter Are.na channel slug">
@@ -55,6 +56,9 @@
                     <button id="diaryViewBtn" class="view-btn" title="Diary View">
                         <span class="material-icons">view_agenda</span>
                     </button>
+                    <a href="channels.html" class="back-to-channels-btn" title="Back to Channels">
+                        <span class="material-icons">arrow_back</span>
+                    </a>
                 </div>
             </div>
 
@@ -70,9 +74,15 @@
     <div id="blockModal" class="modal hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content">
-            <button class="modal-close">
-                <span class="material-icons">close</span>
-            </button>
+            <div class="modal-header">
+                <div class="modal-header-info">
+                    <div class="modal-header-title"></div>
+                    <div class="modal-header-date"></div>
+                </div>
+                <button class="modal-close">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
             <button class="modal-nav modal-prev" title="Previous">
                 <span class="material-icons">chevron_left</span>
             </button>
