@@ -1,15 +1,8 @@
 // State management
 const state = {
     isLoading: false,
-    // List of Kent's channels to display
-    featuredChannels: [
-        'artificial-complexity',
-        'time-and-the-future',
-        'accidental-baroque',
-        'community-through-the-lens',
-        'tennis-is-life',
-        'spatial-interfaces'
-    ],
+    // Get channel slugs from the configuration
+    featuredChannels: CHANNELS_CONFIG.map(channel => channel.slug),
     // Kent's username for API calls
     username: 'kent'
 };
@@ -54,7 +47,7 @@ async function loadFeaturedChannels() {
     try {
         // Load channel data for each featured channel
         const channelPromises = state.featuredChannels.map(slug => 
-            fetch(API.channel(`${state.username}/${slug}`))
+            fetch(API.channel(slug))
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`Failed to load channel: ${slug}`);
@@ -71,20 +64,35 @@ async function loadFeaturedChannels() {
         const validChannels = channels.filter(channel => channel !== null);
         
         if (validChannels.length === 0) {
-            throw new Error('No channels could be loaded');
+            // If no channels could be loaded from the API, use configuration data
+            console.log("Using configuration channel data");
+            CHANNELS_CONFIG.forEach(channel => {
+                renderChannelCard({
+                    ...channel,
+                    user: { full_name: USER_CONFIG.full_name }
+                });
+            });
+        } else {
+            // Render channel cards from API data
+            validChannels.forEach(channel => {
+                renderChannelCard(channel);
+            });
         }
-        
-        // Render channel cards
-        validChannels.forEach(channel => {
-            renderChannelCard(channel);
-        });
         
         hideLoading();
         
     } catch (error) {
         console.error('Error loading featured channels:', error);
         hideLoading();
-        showError('Failed to load channels. Please try again later.');
+        
+        // Use configuration data if API calls fail
+        console.log("Using configuration channel data due to error");
+        CHANNELS_CONFIG.forEach(channel => {
+            renderChannelCard({
+                ...channel,
+                user: { full_name: USER_CONFIG.full_name }
+            });
+        });
     }
 }
 
@@ -108,17 +116,26 @@ function renderChannelCard(channel) {
     }
     
     // Truncate description if needed
-    const description = channel.metadata && channel.metadata.description 
-        ? channel.metadata.description.length > 100 
-            ? channel.metadata.description.substring(0, 100) + '...' 
-            : channel.metadata.description
-        : 'No description available';
+    const description = channel.description || 
+        (channel.metadata && channel.metadata.description 
+            ? channel.metadata.description.length > 100 
+                ? channel.metadata.description.substring(0, 100) + '...' 
+                : channel.metadata.description
+            : 'No description available');
+    
+    // Get first letter of each word in title for placeholder
+    const titleInitials = channel.title
+        .split(' ')
+        .map(word => word.charAt(0))
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
     
     card.innerHTML = `
         <div class="channel-card-thumbnail">
             ${thumbnailUrl 
                 ? `<img src="${thumbnailUrl}" alt="${channel.title}" loading="lazy">` 
-                : `<div class="channel-card-placeholder"></div>`
+                : `<div class="channel-card-placeholder" data-title="${titleInitials}"></div>`
             }
         </div>
         <div class="channel-card-content">
@@ -127,7 +144,7 @@ function renderChannelCard(channel) {
             <div class="channel-card-meta">
                 <div class="channel-card-count">
                     <span class="material-icons">grid_view</span>
-                    ${channel.length} blocks
+                    ${channel.length || 0} blocks
                 </div>
                 <div class="channel-card-by">by ${channel.user.full_name}</div>
             </div>
@@ -137,8 +154,7 @@ function renderChannelCard(channel) {
     // Add click event to open the channel in the viewer
     card.addEventListener('click', () => {
         // Extract the slug part after the username
-        const slugParts = channel.slug.split('/');
-        const channelSlug = slugParts[slugParts.length - 1];
+        const channelSlug = channel.slug;
         
         // Redirect to the channel viewer page with the channel slug
         window.location.href = `index.html?channel=${channelSlug}`;
