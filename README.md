@@ -50,7 +50,7 @@ To run this project locally:
 git clone https://github.com/kentdebruin/Arena-Channel-Viewer.git
 ```
 
-2. Open `index.html` in your browser
+2. Open `channel.html` in your browser
 
 3. Start exploring Are.na channels!
 

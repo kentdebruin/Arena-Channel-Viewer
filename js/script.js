@@ -1,14 +1,17 @@
 // State management
 const state = {
     currentPage: 1,
-    perPage: 24, // Reduced for faster initial load
+    perPage: 32, // Decreased from 48 to improve loading speed
     currentChannel: null,
     hasMore: true,
     currentView: 'grid', // 'grid' or 'diary'
     currentBlocks: [],
     currentModalIndex: -1,
     defaultChannel: 'it-s-a-vibe',
-    isLoading: false
+    isLoading: false,
+    newestBlockId: null,
+    pollingInterval: null,
+    POLLING_DELAY: 30000 // 30 seconds
 };
 
 // DOM Elements
@@ -33,7 +36,9 @@ const elements = {
     fixedChannelTitle: document.getElementById('fixedChannelTitle'),
     fixedGridViewBtn: document.getElementById('fixedGridViewBtn'),
     fixedDiaryViewBtn: document.getElementById('fixedDiaryViewBtn'),
-    main: document.querySelector('main')
+    main: document.querySelector('main'),
+    breadcrumb: document.getElementById('breadcrumb'),
+    currentChannel: document.getElementById('currentChannel')
 };
 
 // API endpoints
@@ -41,7 +46,9 @@ const API = {
     baseUrl: 'https://api.are.na/v2',
     channel: (slug) => `${API.baseUrl}/channels/${slug}`,
     blocks: (slug, page, perPage) => 
-        `${API.baseUrl}/channels/${slug}/contents?page=${page}&per=${perPage}&sort=connected_at&direction=desc`
+        `${API.baseUrl}/channels/${slug}/contents?page=${page}&per=${perPage}&sort=connected_at&direction=desc`,
+    latestBlock: (slug) => 
+        `${API.baseUrl}/channels/${slug}/contents?per=1&sort=connected_at&direction=desc`
 };
 
 // Event Listeners
@@ -117,8 +124,6 @@ window.addEventListener('scroll', () => {
 // Load initial content
 async function loadInitialContent() {
     try {
-        showLoading();
-        
         // Show loading blocks
         const loadingBlocks = Array(12).fill(null).map(() => {
             const container = document.createElement('div');
@@ -134,6 +139,15 @@ async function loadInitialContent() {
             loadingBlocks.forEach(block => elements.blocksGrid.appendChild(block));
         }
 
+        // Try to get cached blocks first
+        const cachedBlocks = BlockCache.getCachedBlocks(state.currentChannel);
+        if (cachedBlocks) {
+            // Render cached blocks immediately
+            state.currentBlocks = cachedBlocks;
+            renderBlocks(cachedBlocks, false);
+        }
+
+        // Fetch fresh blocks
         const response = await fetch(
             API.blocks(state.currentChannel, state.currentPage, state.perPage)
         );
@@ -147,67 +161,90 @@ async function loadInitialContent() {
             state.currentBlocks = data.contents;
             state.hasMore = data.contents.length === state.perPage;
             
+            // Update newestBlockId
+            if (data.contents.length > 0) {
+                state.newestBlockId = data.contents[0].id;
+            }
+            
+            // Cache the blocks
+            await BlockCache.cacheBlocks(state.currentChannel, data.contents);
+            
             // Clear loading blocks before rendering actual content
             if (state.currentView === 'grid') {
                 elements.blocksGrid.innerHTML = '';
             }
             renderBlocks(data.contents, false);
+
+            // Start polling for new blocks
+            startPolling();
         }
 
     } catch (error) {
         showError(error.message);
-    } finally {
-        hideLoading();
     }
 }
 
-// Load more content
-async function loadMoreContent() {
-    if (state.isLoading || !state.hasMore) return;
-
+// Check for new blocks
+async function checkForNewBlocks() {
+    if (!state.currentChannel || state.isLoading) return;
+    
     try {
-        state.isLoading = true;
-        state.currentPage++;
+        const response = await fetch(API.latestBlock(state.currentChannel));
         
-        const response = await fetch(
-            API.blocks(state.currentChannel, state.currentPage, state.perPage)
-        );
+        if (!response.ok) return;
         
-        if (!response.ok) {
-            throw new Error('Failed to load more content');
-        }
-
         const data = await response.json();
-        if (data.contents && Array.isArray(data.contents)) {
-            if (data.contents.length === 0) {
-                state.hasMore = false;
-            } else {
-                state.currentBlocks = [...state.currentBlocks, ...data.contents];
-                state.hasMore = data.contents.length === state.perPage;
-                renderBlocks(data.contents, true);
-            }
+        if (!data.contents || !data.contents[0]) return;
+        
+        const latestBlock = data.contents[0];
+        
+        // If we have a new block
+        if (!state.newestBlockId || latestBlock.id !== state.newestBlockId) {
+            // Fetch new blocks
+            const newBlocksResponse = await fetch(
+                API.blocks(state.currentChannel, 1, state.perPage)
+            );
+            
+            if (!newBlocksResponse.ok) return;
+            
+            const newData = await newBlocksResponse.json();
+            if (!newData.contents || !newData.contents.length) return;
+            
+            // Update state
+            state.newestBlockId = latestBlock.id;
+            state.currentBlocks = newData.contents;
+            
+            // Update cache
+            await BlockCache.cacheBlocks(state.currentChannel, newData.contents);
+            
+            // Re-render blocks
+            renderBlocks(newData.contents, false);
         }
-
     } catch (error) {
-        showError(error.message);
-    } finally {
-        state.isLoading = false;
-        hideLoading();
+        console.error('Error checking for new blocks:', error);
     }
 }
 
-// Add scroll handler for lazy loading
-window.addEventListener('scroll', debounce(() => {
-    const scrollPosition = window.innerHeight + window.scrollY;
-    const bodyHeight = document.body.offsetHeight;
-    const scrollThreshold = 200;
-
-    if (bodyHeight - scrollPosition < scrollThreshold) {
-        loadMoreContent();
+// Start polling for new blocks
+function startPolling() {
+    // Clear existing interval if any
+    if (state.pollingInterval) {
+        clearInterval(state.pollingInterval);
     }
-}, 100));
+    
+    // Start new polling interval
+    state.pollingInterval = setInterval(checkForNewBlocks, state.POLLING_DELAY);
+}
 
-// Main search handler
+// Stop polling
+function stopPolling() {
+    if (state.pollingInterval) {
+        clearInterval(state.pollingInterval);
+        state.pollingInterval = null;
+    }
+}
+
+// Update the handleSearch function
 async function handleSearch() {
     const inputValue = elements.channelInput.value.trim();
     if (!inputValue) {
@@ -227,14 +264,33 @@ async function handleSearch() {
         return;
     }
 
+    // Stop existing polling
+    stopPolling();
+
     // Reset state
     state.currentPage = 1;
     state.currentChannel = channelSlug;
     state.hasMore = true;
     state.currentBlocks = [];
+    state.newestBlockId = null;
     elements.blocksGrid.innerHTML = '';
     elements.blocksDiary.innerHTML = '';
     hideError();
+    
+    // Show loading blocks immediately
+    const loadingBlocks = Array(12).fill(null).map(() => {
+        const container = document.createElement('div');
+        container.className = 'block-container loading';
+        const block = document.createElement('div');
+        block.className = 'block';
+        container.appendChild(block);
+        return container;
+    });
+    
+    if (state.currentView === 'grid') {
+        elements.blocksGrid.innerHTML = '';
+        loadingBlocks.forEach(block => elements.blocksGrid.appendChild(block));
+    }
     
     try {
         showLoading();
@@ -342,7 +398,7 @@ function createDiaryBlockElement(block) {
     let content = '';
     
     // Add image section if it's an image block
-    if (block.class === 'Image' && block.image) {
+    if (block.class === 'Image' && block.image && block.image.display && block.image.display.url) {
         content += `
             <div class="diary-block-image">
                 <img src="${block.image.display.url}" alt="${block.title || 'Image block'}">
@@ -395,6 +451,55 @@ function formatTime(dateStr) {
     });
 }
 
+// Helper function to extract YouTube video ID from URL
+function getYouTubeVideoId(url) {
+    try {
+        // Log the URL we're trying to parse
+        console.log('Trying to parse YouTube URL:', url);
+        
+        const urlObj = new URL(url);
+        console.log('URL parsed as:', urlObj.toString());
+        console.log('Hostname:', urlObj.hostname);
+        
+        // Handle youtu.be format
+        if (urlObj.hostname === 'youtu.be') {
+            const id = urlObj.pathname.slice(1);
+            console.log('youtu.be format, extracted ID:', id);
+            return id;
+        }
+        
+        // Handle youtube.com formats
+        if (urlObj.hostname === 'www.youtube.com' || urlObj.hostname === 'youtube.com' || urlObj.hostname === 'm.youtube.com') {
+            // Handle standard watch URLs
+            if (urlObj.pathname === '/watch') {
+                const id = new URLSearchParams(urlObj.search).get('v');
+                console.log('youtube.com/watch format, extracted ID:', id);
+                return id;
+            }
+            
+            // Handle shortened /v/ URLs
+            if (urlObj.pathname.startsWith('/v/')) {
+                const id = urlObj.pathname.split('/v/')[1];
+                console.log('youtube.com/v/ format, extracted ID:', id);
+                return id;
+            }
+            
+            // Handle embed URLs
+            if (urlObj.pathname.startsWith('/embed/')) {
+                const id = urlObj.pathname.split('/embed/')[1];
+                console.log('youtube.com/embed/ format, extracted ID:', id);
+                return id;
+            }
+        }
+        
+        console.log('No YouTube video ID found in URL');
+        return null;
+    } catch (e) {
+        console.error('Error parsing YouTube URL:', e);
+        return null;
+    }
+}
+
 // Create block element based on type
 function createBlockElement(block) {
     const container = document.createElement('div');
@@ -405,7 +510,15 @@ function createBlockElement(block) {
     
     switch (block.class) {
         case 'Image':
-            element.innerHTML = `<img src="${block.image.display.url}" alt="${block.title || 'Image block'}">`;
+            if (block.image && block.image.display && block.image.display.url) {
+                element.innerHTML = `<img src="${block.image.display.url}" alt="${block.title || 'Image block'}">`;
+            } else {
+                element.innerHTML = `
+                    <div class="block-content">
+                        <p class="block-text">Image unavailable</p>
+                    </div>
+                `;
+            }
             break;
             
         case 'Text':
@@ -414,19 +527,92 @@ function createBlockElement(block) {
                     <p class="block-text">${block.content}</p>
                 </div>
             `;
+            // Check for overflow after render
+            setTimeout(() => {
+                const content = element.querySelector('.block-content');
+                const text = element.querySelector('.block-text');
+                if (text.scrollHeight > content.clientHeight) {
+                    content.classList.add('overflow');
+                }
+            }, 0);
             break;
             
         case 'Link':
-            element.innerHTML = `
-                <div class="block-content">
-                    <a href="${block.source.url}" target="_blank" class="block-link">
-                        ${block.source.url}
-                    </a>
-                    ${block.description ? `
-                        <p class="block-text">${block.description}</p>
-                    ` : ''}
-                </div>
-            `;
+            // Log the link block for debugging
+            console.log('Processing Link block:', {
+                title: block.title,
+                url: block.source?.url,
+                description: block.description
+            });
+            
+            // Check if it's a YouTube link
+            const linkYTId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
+            if (linkYTId) {
+                console.log('Found YouTube ID:', linkYTId);
+                // Show YouTube thumbnail as a regular image
+                element.innerHTML = `
+                    <img src="https://img.youtube.com/vi/${linkYTId}/maxresdefault.jpg" 
+                         alt="${block.title || 'YouTube video'}"
+                         onerror="this.onerror=null; this.src='https://img.youtube.com/vi/${linkYTId}/hqdefault.jpg';">
+                `;
+            } else {
+                console.log('Not a YouTube link, rendering as regular link');
+                // Regular link handling
+                element.innerHTML = `
+                    <div class="block-content">
+                        <div class="block-link-container">
+                            ${block.title ? `
+                                <div class="block-link-meta">
+                                    <h3 class="block-link-title">${block.title}</h3>
+                                    ${block.source?.description ? `
+                                        <p class="block-link-description">${block.source.description}</p>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                            <a href="${block.source?.url || '#'}" target="_blank" class="block-link">
+                                ${block.source?.url || 'Link unavailable'}
+                            </a>
+                            ${block.description ? `
+                                <div class="block-description">
+                                    <p class="block-text">${block.description}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            break;
+
+        case 'Media':
+            // Log the media block for debugging
+            console.log('Processing Media block:', {
+                title: block.title,
+                url: block.source?.url,
+                description: block.description
+            });
+            
+            // Check if it's a YouTube link
+            const mediaYTId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
+            if (mediaYTId) {
+                console.log('Found YouTube ID:', mediaYTId);
+                // Show YouTube thumbnail with play button overlay
+                element.innerHTML = `
+                    <img src="https://img.youtube.com/vi/${mediaYTId}/maxresdefault.jpg" 
+                         alt="${block.title || 'YouTube video'}"
+                         onerror="this.onerror=null; this.src='https://img.youtube.com/vi/${mediaYTId}/hqdefault.jpg';">
+                    <div class="youtube-overlay">
+                        <span class="material-icons">play_circle</span>
+                    </div>
+                `;
+                element.classList.add('youtube-block');
+            } else {
+                // Handle other media types or show unsupported message
+                element.innerHTML = `
+                    <div class="block-content">
+                        <p class="block-text">Unsupported media type</p>
+                    </div>
+                `;
+            }
             break;
             
         default:
@@ -459,8 +645,23 @@ function updateChannelInfo(channel) {
     const blockCount = channel.length || 0;
     const blockCountText = `<span class="block-count">${blockCount}</span>`;
     
-    elements.channelTitle.innerHTML = `${channel.title} ${blockCountText}`;
-    elements.fixedChannelTitle.innerHTML = `${channel.title} ${blockCountText}`;
+    // Add both the title and the Are.na link
+    elements.channelTitle.innerHTML = `
+        ${channel.title} 
+        ${blockCountText}
+        <a href="https://www.are.na/channel/${channel.slug}" 
+           class="arena-link" 
+           target="_blank" 
+           title="View on Are.na"
+           rel="noopener noreferrer">
+           <span class="material-icons">open_in_new</span>
+        </a>
+    `;
+    
+    // Update breadcrumb and fixed header title
+    elements.currentChannel.textContent = channel.title;
+    elements.fixedChannelTitle.textContent = channel.title;
+    elements.breadcrumb.classList.remove('hidden');
     
     if (channel.description) {
         elements.channelDescription.textContent = channel.description;
@@ -468,6 +669,7 @@ function updateChannelInfo(channel) {
     } else {
         elements.channelDescription.classList.add('hidden');
     }
+    
     elements.channelInfo.classList.remove('hidden');
 }
 
@@ -580,7 +782,14 @@ function createModalContent(block) {
     const headerDate = document.querySelector('.modal-header-date');
     
     if (headerTitle) {
-        headerTitle.textContent = block.title || '';
+        // Create a link to the Are.na block
+        headerTitle.innerHTML = `
+            <a href="https://www.are.na/block/${block.id}" 
+               target="_blank" 
+               class="block-title-link">
+                ${block.title || 'Untitled'}
+            </a>
+        `;
     }
     
     if (headerDate) {
@@ -591,12 +800,16 @@ function createModalContent(block) {
     // Add content based on block type
     switch (block.class) {
         case 'Image':
-            if (block.image) {
+            if (block.image && block.image.display && block.image.display.url) {
                 content.classList.add('is-image');
                 const img = document.createElement('img');
                 img.src = block.image.display.url;
                 img.alt = block.title || 'Image';
                 content.appendChild(img);
+            } else {
+                const errorText = document.createElement('p');
+                errorText.textContent = 'Image unavailable';
+                content.appendChild(errorText);
             }
             break;
             
@@ -608,15 +821,61 @@ function createModalContent(block) {
             break;
             
         case 'Link':
-            const linkContainer = document.createElement('div');
-            linkContainer.className = 'modal-text-container';
-            linkContainer.innerHTML = `
-                <a href="${block.source.url}" target="_blank" class="block-link">
-                    ${block.title || block.source.url}
-                </a>
-                ${block.description ? `<p>${block.description}</p>` : ''}
-            `;
-            content.appendChild(linkContainer);
+            const modalYTId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
+            if (modalYTId) {
+                content.classList.add('is-video');
+                // Create responsive video container
+                const videoContainer = document.createElement('div');
+                videoContainer.className = 'video-container';
+                // Add YouTube embed without autoplay
+                videoContainer.innerHTML = `
+                    <iframe 
+                        width="960" 
+                        height="540" 
+                        src="https://www.youtube.com/embed/${modalYTId}" 
+                        frameborder="0" 
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                `;
+                content.appendChild(videoContainer);
+            } else {
+                const linkContainer = document.createElement('div');
+                linkContainer.className = 'modal-text-container';
+                linkContainer.innerHTML = `
+                    <a href="${block.source.url}" target="_blank" class="block-link">
+                        ${block.title || block.source.url}
+                    </a>
+                    ${block.description ? `<p>${block.description}</p>` : ''}
+                `;
+                content.appendChild(linkContainer);
+            }
+            break;
+
+        case 'Media':
+            const youtubeId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
+            if (youtubeId) {
+                content.classList.add('is-video');
+                // Create responsive video container
+                const videoContainer = document.createElement('div');
+                videoContainer.className = 'video-container';
+                // Add YouTube embed without autoplay
+                videoContainer.innerHTML = `
+                    <iframe 
+                        width="960" 
+                        height="540" 
+                        src="https://www.youtube.com/embed/${youtubeId}" 
+                        frameborder="0" 
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                `;
+                content.appendChild(videoContainer);
+            } else {
+                const errorText = document.createElement('p');
+                errorText.textContent = 'Video unavailable';
+                content.appendChild(errorText);
+            }
             break;
     }
     
@@ -679,3 +938,8 @@ function debounce(func, wait) {
         }, wait);
     };
 }
+
+// Clean up when leaving the page
+window.addEventListener('beforeunload', () => {
+    stopPolling();
+});

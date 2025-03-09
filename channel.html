@@ -12,8 +12,13 @@
     <div class="container">
         <header>
             <div class="header-left">
-                <h1>Channels</h1>
-                <a href="channels.html" class="channels-link">Browse Channels</a>
+                <h1>
+                    <a href="channels.html">Channels</a>
+                    <span id="breadcrumb" class="breadcrumb hidden">
+                        <span class="breadcrumb-separator">/</span>
+                        <span id="currentChannel"></span>
+                    </span>
+                </h1>
             </div>
             <div class="search-container">
                 <input type="text" id="channelInput" placeholder="Enter Are.na channel slug">
@@ -25,7 +30,11 @@
 
         <!-- Fixed header that appears on scroll -->
         <div class="fixed-header">
-            <h2 class="fixed-header-title" id="fixedChannelTitle"></h2>
+            <h2 class="fixed-header-title">
+                <a href="channels.html">Channels</a>
+                <span class="breadcrumb-separator">/</span>
+                <span id="fixedChannelTitle"></span>
+            </h2>
             <div class="view-toggle">
                 <button id="fixedGridViewBtn" class="view-btn" title="Grid View">
                     <span class="material-icons">grid_view</span>
@@ -38,7 +47,7 @@
 
         <main>
             <!-- Loading indicator -->
-            <div id="loading" class="loading hidden">Loading...</div>
+            <div id="loading" class="loading hidden"></div>
             
             <!-- Error message container -->
             <div id="error" class="error hidden"></div>
@@ -46,7 +55,7 @@
             <!-- Channel info -->
             <div id="channelInfo" class="channel-info hidden">
                 <div class="channel-text">
-                    <h2 id="channelTitle"></h2>
+                    <h1 id="channelTitle"></h1>
                     <p id="channelDescription"></p>
                 </div>
                 <div class="view-toggle">
@@ -56,9 +65,6 @@
                     <button id="diaryViewBtn" class="view-btn" title="Diary View">
                         <span class="material-icons">view_agenda</span>
                     </button>
-                    <a href="channels.html" class="back-to-channels-btn" title="Back to Channels">
-                        <span class="material-icons">arrow_back</span>
-                    </a>
                 </div>
             </div>
 
@@ -93,6 +99,8 @@
         </div>
     </div>
 
+    <!-- Load cache management -->
+    <script src="js/cache.js"></script>
     <script src="js/script.js"></script>
 </body>
 </html> 

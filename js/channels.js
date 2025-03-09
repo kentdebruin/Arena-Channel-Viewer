@@ -19,8 +19,10 @@ const elements = {
 // API endpoints
 const API = {
     baseUrl: 'https://api.are.na/v2',
-    channel: (slug) => `${API.baseUrl}/channels/${slug}`,
-    userChannels: (username) => `${API.baseUrl}/users/${username}/channels`
+    channel: (slug) => `${API.baseUrl}/channels/${slug}?sort=connected_at&direction=desc&per=25`,
+    userChannels: (username) => `${API.baseUrl}/users/${username}/channels`,
+    maxRetries: 3,
+    retryDelay: 1000 // 1 second delay between retries
 };
 
 // Event Listeners
@@ -39,90 +41,242 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// Enhanced fetch with retry mechanism
+async function fetchWithRetry(url, retries = API.maxRetries) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url);
+            
+            // Log rate limit information
+            const remaining = response.headers.get('X-RateLimit-Remaining');
+            const limit = response.headers.get('X-RateLimit-Limit');
+            if (remaining && limit) {
+                console.log(`Are.na API Rate Limit: ${remaining}/${limit} remaining`);
+            }
+
+            if (response.status === 429) { // Rate limited
+                const retryAfter = response.headers.get('Retry-After') || API.retryDelay;
+                console.warn(`Rate limited. Waiting ${retryAfter}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter));
+                continue;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`Successfully fetched data from Are.na API: ${url}`);
+            return data;
+        } catch (error) {
+            const isLastAttempt = i === retries - 1;
+            if (isLastAttempt) {
+                console.error(`Failed to fetch after ${retries} attempts:`, error);
+                throw error;
+            } else {
+                console.warn(`Attempt ${i + 1} failed, retrying in ${API.retryDelay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, API.retryDelay));
+            }
+        }
+    }
+}
+
 // Load featured channels
 async function loadFeaturedChannels() {
     showLoading();
     elements.channelsGrid.innerHTML = '';
     
+    // Show loading blocks only for the number of channels we're loading
+    const numChannels = state.featuredChannels.length;
+    const loadingBlocks = Array(numChannels).fill(null).map(() => {
+        const container = document.createElement('div');
+        container.className = 'channel-card-wrapper';
+        const card = document.createElement('div');
+        card.className = 'channel-card loading';
+        container.appendChild(card);
+        return container;
+    });
+    
+    loadingBlocks.forEach(block => elements.channelsGrid.appendChild(block));
+    
     try {
         // Load channel data for each featured channel
         const channelPromises = state.featuredChannels.map(slug => 
-            fetch(API.channel(slug))
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Failed to load channel: ${slug}`);
-                    }
-                    return response.json();
+            fetchWithRetry(API.channel(slug))
+                .then(data => {
+                    console.log(`Channel ${slug} loaded:`, {
+                        totalBlocks: data.length,
+                        imageBlocks: data.contents?.filter(block => block.class === 'Image').length || 0,
+                        newestBlock: data.contents?.[0]?.connected_at
+                    });
+                    return data;
                 })
                 .catch(error => {
-                    console.error(error);
-                    return null; // Return null for failed channels
+                    console.error(`Failed to load channel ${slug}:`, error);
+                    return null;
                 })
         );
         
         const channels = await Promise.all(channelPromises);
         const validChannels = channels.filter(channel => channel !== null);
         
+        // Clear the loading blocks before rendering actual content
+        elements.channelsGrid.innerHTML = '';
+        
         if (validChannels.length === 0) {
+            console.warn("No channels could be loaded from Are.na API, falling back to configuration data");
+            showError('Using offline channel data - some images may not be up to date');
+            
             // If no channels could be loaded from the API, use configuration data
-            console.log("Using configuration channel data");
             CHANNELS_CONFIG.forEach(channel => {
-                renderChannelCard({
+                console.log(`Using sample data for channel: ${channel.slug}`);
+                // Create a mock channel object with contents for images
+                const mockChannel = {
                     ...channel,
-                    user: { full_name: USER_CONFIG.full_name }
-                });
+                    user: { full_name: USER_CONFIG.full_name },
+                    contents: []
+                };
+                
+                // Add additional images first (they will be shown in the slideshow)
+                if (channel.sampleImages && channel.sampleImages.length > 0) {
+                    channel.sampleImages.forEach((url, index) => {
+                        mockChannel.contents.push({
+                            class: 'Image',
+                            image: {
+                                display: {
+                                    url: url
+                                }
+                            },
+                            id: `sample-${index}`,
+                            connected_at: new Date(Date.now() - (index + 1) * 86400000).toISOString() // Mock dates, newer to older
+                        });
+                    });
+                }
+                
+                // Add main image last (it will be the newest)
+                if (channel.sampleImage) {
+                    mockChannel.contents.push({
+                        class: 'Image',
+                        image: {
+                            display: {
+                                url: channel.sampleImage
+                            }
+                        },
+                        id: 'sample-main',
+                        connected_at: new Date().toISOString() // Most recent date
+                    });
+                }
+                
+                renderChannelCard(mockChannel);
             });
         } else {
+            console.log(`Successfully loaded ${validChannels.length} channels from Are.na API`);
+            hideError(); // Hide any previous error messages
             // Render channel cards from API data
             validChannels.forEach(channel => {
+                console.log(`Rendering channel ${channel.slug} with ${channel.contents?.length || 0} blocks`);
                 renderChannelCard(channel);
             });
         }
         
         hideLoading();
         
+        // Preload images for smoother animations
+        preloadSlideshowImages();
+        
+        // Set up proper hover effects
+        setupHoverEffects();
+        
     } catch (error) {
         console.error('Error loading featured channels:', error);
         hideLoading();
+        showError('Unable to load live channel data - showing offline content');
+        
+        // Clear the loading blocks before showing offline content
+        elements.channelsGrid.innerHTML = '';
         
         // Use configuration data if API calls fail
-        console.log("Using configuration channel data due to error");
+        console.warn("Using configuration channel data due to error");
         CHANNELS_CONFIG.forEach(channel => {
-            renderChannelCard({
+            console.log(`Using sample data for channel: ${channel.slug}`);
+            // Create a mock channel object with contents for images
+            const mockChannel = {
                 ...channel,
-                user: { full_name: USER_CONFIG.full_name }
-            });
+                user: { full_name: USER_CONFIG.full_name },
+                contents: []
+            };
+            
+            // Add additional images first (they will be shown in the slideshow)
+            if (channel.sampleImages && channel.sampleImages.length > 0) {
+                channel.sampleImages.forEach((url, index) => {
+                    mockChannel.contents.push({
+                        class: 'Image',
+                        image: {
+                            display: {
+                                url: url
+                            }
+                        },
+                        id: `sample-${index}`,
+                        connected_at: new Date(Date.now() - (index + 1) * 86400000).toISOString() // Mock dates, newer to older
+                    });
+                });
+            }
+            
+            // Add main image last (it will be the newest)
+            if (channel.sampleImage) {
+                mockChannel.contents.push({
+                    class: 'Image',
+                    image: {
+                        display: {
+                            url: channel.sampleImage
+                        }
+                    },
+                    id: 'sample-main',
+                    connected_at: new Date().toISOString() // Most recent date
+                });
+            }
+            
+            renderChannelCard(mockChannel);
         });
+        
+        // Preload images for smoother animations
+        preloadSlideshowImages();
+        
+        // Set up proper hover effects
+        setupHoverEffects();
     }
+}
+
+// Preload all slideshow images to ensure smooth animations
+function preloadSlideshowImages() {
+    const slideshowImages = document.querySelectorAll('.channel-card-slideshow img');
+    slideshowImages.forEach(img => {
+        // Create a new Image object to preload
+        const preloadImg = new Image();
+        preloadImg.src = img.src;
+        
+        // Force eager loading
+        img.setAttribute('loading', 'eager');
+        
+        // Add a loaded class when the image is fully loaded
+        preloadImg.onload = () => {
+            img.classList.add('loaded');
+        };
+    });
 }
 
 // Render a channel card
 function renderChannelCard(channel) {
     const card = document.createElement('div');
-    card.className = 'channel-card';
+    card.className = 'channel-card-wrapper';
     card.dataset.slug = channel.slug;
-    
-    // Find a suitable thumbnail image
-    let thumbnailUrl = null;
-    if (channel.contents && channel.contents.length > 0) {
-        // Try to find an image block for the thumbnail
-        const imageBlock = channel.contents.find(block => 
-            block.class === 'Image' && block.image && block.image.display
-        );
-        
-        if (imageBlock) {
-            thumbnailUrl = imageBlock.image.display.url;
-        }
-    }
-    
-    // Truncate description if needed
-    const description = channel.description || 
-        (channel.metadata && channel.metadata.description 
-            ? channel.metadata.description.length > 100 
-                ? channel.metadata.description.substring(0, 100) + '...' 
-                : channel.metadata.description
-            : 'No description available');
-    
+
+    // Sort blocks by connected_at, newest first
+    const sortedBlocks = channel.contents
+        .filter(block => (block.class === 'Image' && block.image && block.image.display) || 
+                        (block.class === 'Text' && block.content))
+        .sort((a, b) => new Date(b.connected_at) - new Date(a.connected_at));
+
     // Get first letter of each word in title for placeholder
     const titleInitials = channel.title
         .split(' ')
@@ -130,36 +284,96 @@ function renderChannelCard(channel) {
         .join('')
         .substring(0, 2)
         .toUpperCase();
-    
-    card.innerHTML = `
-        <div class="channel-card-thumbnail">
-            ${thumbnailUrl 
-                ? `<img src="${thumbnailUrl}" alt="${channel.title}" loading="lazy">` 
-                : `<div class="channel-card-placeholder" data-title="${titleInitials}"></div>`
-            }
-        </div>
-        <div class="channel-card-content">
-            <div class="channel-card-title">${channel.title}</div>
-            <div class="channel-card-description">${description}</div>
-            <div class="channel-card-meta">
-                <div class="channel-card-count">
-                    <span class="material-icons">grid_view</span>
-                    ${channel.length || 0} blocks
-                </div>
-                <div class="channel-card-by">by ${channel.user.full_name}</div>
-            </div>
-        </div>
-    `;
-    
-    // Add click event to open the channel in the viewer
-    card.addEventListener('click', () => {
-        // Extract the slug part after the username
-        const channelSlug = channel.slug;
+
+    const channelCard = document.createElement('div');
+    channelCard.className = 'channel-card';
+
+    const imagesContainer = document.createElement('div');
+    imagesContainer.className = 'channel-card-images';
+
+    if (sortedBlocks.length > 0) {
+        // Add the newest block first (it will be shown as cover)
+        const latestBlockDiv = document.createElement('div');
+        latestBlockDiv.className = 'channel-card-image';
         
-        // Redirect to the channel viewer page with the channel slug
-        window.location.href = `index.html?channel=${channelSlug}`;
-    });
+        const latestBlock = sortedBlocks[0];
+        if (latestBlock.class === 'Image') {
+            const latestImg = document.createElement('img');
+            latestImg.src = latestBlock.image.display.url;
+            latestImg.alt = latestBlock.title || channel.title;
+            latestImg.loading = 'eager'; // Load the cover image immediately
+            latestBlockDiv.appendChild(latestImg);
+        } else if (latestBlock.class === 'Text') {
+            latestBlockDiv.className = 'channel-card-text';
+            const textContent = document.createElement('div');
+            textContent.className = 'text-content';
+            textContent.textContent = latestBlock.content;
+            latestBlockDiv.appendChild(textContent);
+        }
+        
+        imagesContainer.appendChild(latestBlockDiv);
+
+        // Add older images for the slideshow (only image blocks)
+        const olderImageBlocks = sortedBlocks
+            .slice(1)
+            .filter(block => block.class === 'Image');
+        
+        // Show up to 8 images in the slideshow
+        const numImages = Math.min(olderImageBlocks.length, 8);
+        for (let i = 0; i < numImages; i++) {
+            const imageDiv = document.createElement('div');
+            imageDiv.className = 'channel-card-image';
+            
+            const img = document.createElement('img');
+            img.src = olderImageBlocks[i].image.display.url;
+            img.alt = olderImageBlocks[i].title || `${channel.title} image ${i + 1}`;
+            img.loading = 'lazy';
+            
+            imageDiv.appendChild(img);
+            imagesContainer.appendChild(imageDiv);
+        }
+    } else {
+        // Only show placeholder if there are no blocks
+        const placeholderDiv = document.createElement('div');
+        placeholderDiv.className = 'channel-card-image';
+        
+        const placeholder = document.createElement('div');
+        placeholder.className = 'channel-card-placeholder';
+        placeholder.dataset.title = titleInitials;
+        
+        placeholderDiv.appendChild(placeholder);
+        imagesContainer.appendChild(placeholderDiv);
+    }
+
+    channelCard.appendChild(imagesContainer);
+
+    // Add title container
+    const titleContainer = document.createElement('div');
+    titleContainer.className = 'channel-card-title-container';
     
+    const title = document.createElement('h3');
+    title.className = 'channel-card-title';
+    
+    // Create the internal link (for our viewer)
+    const titleLink = document.createElement('a');
+    titleLink.href = `channel.html?channel=${channel.slug}`;
+    titleLink.textContent = channel.title;
+    titleLink.className = 'viewer-link';
+    
+    title.appendChild(titleLink);
+    titleContainer.appendChild(title);
+
+    // Add everything to the wrapper
+    card.appendChild(channelCard);
+    card.appendChild(titleContainer);
+
+    // Add click handler
+    card.addEventListener('click', (e) => {
+        if (!e.target.closest('a')) {
+            window.location.href = `channel.html?channel=${channel.slug}`;
+        }
+    });
+
     elements.channelsGrid.appendChild(card);
 }
 
@@ -178,7 +392,7 @@ function handleSearch() {
     }
     
     // Redirect to the channel viewer page with the channel slug
-    window.location.href = `index.html?channel=${slug}`;
+    window.location.href = `channel.html?channel=${slug}`;
 }
 
 // Show loading indicator
@@ -202,4 +416,43 @@ function showError(message) {
 // Hide error message
 function hideError() {
     elements.error.classList.add('hidden');
+}
+
+// Set up proper hover effects for channel cards
+function setupHoverEffects() {
+    const cards = document.querySelectorAll('.channel-card');
+    
+    cards.forEach(card => {
+        const images = card.querySelectorAll('.channel-card-image:not(:first-child)');
+        let currentIndex = 0;
+        let slideshowInterval;
+
+        const showNextImage = () => {
+            images.forEach(img => img.classList.remove('active'));
+            if (currentIndex < images.length) {
+                images[currentIndex].classList.add('active');
+                currentIndex = (currentIndex + 1) % images.length;
+            }
+        };
+
+        card.addEventListener('mouseenter', () => {
+            if (images.length > 0) {
+                // Reset any active states
+                images.forEach(img => img.classList.remove('active'));
+                
+                // Show the first slideshow image immediately
+                images[0].classList.add('active');
+                currentIndex = 1;
+
+                // Start smooth slideshow with cross-fade
+                slideshowInterval = setInterval(showNextImage, 800); // Slower timing for smoother transitions
+            }
+        });
+
+        card.addEventListener('mouseleave', () => {
+            clearInterval(slideshowInterval);
+            images.forEach(img => img.classList.remove('active'));
+            currentIndex = 0;
+        });
+    });
 } 
