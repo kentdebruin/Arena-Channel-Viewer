@@ -12,29 +12,37 @@
     <div class="container">
         <header>
             <div class="header-left">
-                <h1>
-                    <a href="channel-overview.html">Channels</a>
-                    <span id="breadcrumb" class="breadcrumb hidden">
-                        <span class="breadcrumb-separator">/</span>
-                        <span id="currentChannel"></span>
-                    </span>
-                </h1>
+                <nav class="breadcrumb-container">
+                    <a href="channel-overview.html" class="breadcrumb-link">Channels</a>
+                    <span class="breadcrumb-separator">/</span>
+                    <span id="currentChannel" class="breadcrumb-current"></span>
+                </nav>
             </div>
-            <div class="search-container">
-                <input type="text" id="channelInput" placeholder="Enter Are.na channel slug">
-                <button class="search-icon" id="searchButton">
-                    <span class="material-icons">arrow_forward</span>
-                </button>
+            <div class="header-right">
+                <div class="search-container">
+                    <input type="text" id="channelInput" placeholder="Enter Are.na channel slug">
+                    <button class="search-icon" id="searchButton">
+                        <span class="material-icons">arrow_forward</span>
+                    </button>
+                </div>
+                <div class="view-toggle">
+                    <button id="gridViewBtn" class="view-btn active" title="Grid View">
+                        <span class="material-icons">grid_view</span>
+                    </button>
+                    <button id="diaryViewBtn" class="view-btn" title="Diary View">
+                        <span class="material-icons">view_agenda</span>
+                    </button>
+                </div>
             </div>
         </header>
 
         <!-- Fixed header that appears on scroll -->
         <div class="fixed-header">
-            <h2 class="fixed-header-title">
-                <a href="channel-overview.html">Channels</a>
+            <nav class="breadcrumb-container">
+                <a href="channel-overview.html" class="breadcrumb-link">Channels</a>
                 <span class="breadcrumb-separator">/</span>
-                <span id="fixedChannelTitle"></span>
-            </h2>
+                <span id="fixedChannelTitle" class="breadcrumb-current"></span>
+            </nav>
             <div class="view-toggle">
                 <button id="fixedGridViewBtn" class="view-btn" title="Grid View">
                     <span class="material-icons">grid_view</span>
@@ -52,20 +60,9 @@
             <!-- Error message container -->
             <div id="error" class="error hidden"></div>
             
-            <!-- Channel info -->
+            <!-- Channel information -->
             <div id="channelInfo" class="channel-info hidden">
-                <div class="channel-text">
-                    <h1 id="channelTitle"></h1>
-                    <p id="channelDescription"></p>
-                </div>
-                <div class="view-toggle">
-                    <button id="gridViewBtn" class="view-btn active" title="Grid View">
-                        <span class="material-icons">grid_view</span>
-                    </button>
-                    <button id="diaryViewBtn" class="view-btn" title="Diary View">
-                        <span class="material-icons">view_agenda</span>
-                    </button>
-                </div>
+                <div id="channelDescription" class="channel-description hidden"></div>
             </div>
 
             <!-- Grid view -->
@@ -101,6 +98,7 @@
 
     <!-- Load cache management -->
     <script src="js/cache.js"></script>
-    <script src="js/script.js"></script>
+    <script src="js/modal.js"></script>
+    <script type="module" src="js/script.js"></script>
 </body>
 </html> 

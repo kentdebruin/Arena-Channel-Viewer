@@ -13,7 +13,11 @@ const elements = {
     error: document.getElementById('error'),
     channelsGrid: document.getElementById('channelsGrid'),
     channelInput: document.getElementById('channelInput'),
-    searchButton: document.getElementById('searchButton')
+    searchButton: document.getElementById('searchButton'),
+    fixedHeader: document.querySelector('.fixed-header'),
+    fixedChannelInput: document.getElementById('fixedChannelInput'),
+    fixedSearchButton: document.getElementById('fixedSearchButton'),
+    main: document.querySelector('main')
 };
 
 // API endpoints
@@ -29,6 +33,54 @@ const API = {
 elements.searchButton.addEventListener('click', handleSearch);
 elements.channelInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleSearch();
+});
+
+// Add fixed header event listeners
+elements.fixedSearchButton.addEventListener('click', handleSearch);
+elements.fixedChannelInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleSearch();
+});
+
+// Handle scroll events for fixed header
+let lastScrollY = 0;
+let ticking = false;
+
+window.addEventListener('scroll', () => {
+    if (!ticking) {
+        window.requestAnimationFrame(() => {
+            const currentScrollY = window.scrollY;
+            
+            // Show/hide fixed header based on scroll direction and position
+            if (currentScrollY > 100) {
+                if (currentScrollY > lastScrollY) {
+                    // Scrolling down
+                    elements.fixedHeader.classList.remove('visible');
+                    elements.main.classList.remove('fixed-header-visible');
+                } else {
+                    // Scrolling up
+                    elements.fixedHeader.classList.add('visible');
+                    elements.main.classList.add('fixed-header-visible');
+                }
+            } else {
+                elements.fixedHeader.classList.remove('visible');
+                elements.main.classList.remove('fixed-header-visible');
+            }
+            
+            lastScrollY = currentScrollY;
+            ticking = false;
+        });
+        
+        ticking = true;
+    }
+});
+
+// Sync input fields
+elements.channelInput.addEventListener('input', (e) => {
+    elements.fixedChannelInput.value = e.target.value;
+});
+
+elements.fixedChannelInput.addEventListener('input', (e) => {
+    elements.channelInput.value = e.target.value;
 });
 
 // Load channels on page load
@@ -80,6 +132,23 @@ async function fetchWithRetry(url, retries = API.maxRetries) {
         }
     }
 }
+
+// Initialize Intersection Observer for lazy loading
+const imageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            if (img.dataset.src) {
+                img.src = img.dataset.src;
+                delete img.dataset.src;
+            }
+            observer.unobserve(img);
+        }
+    });
+}, {
+    rootMargin: '50px 0px', // Start loading images 50px before they enter the viewport
+    threshold: 0.1
+});
 
 // Load featured channels
 async function loadFeaturedChannels() {
@@ -255,8 +324,10 @@ function preloadSlideshowImages() {
         const preloadImg = new Image();
         preloadImg.src = img.src;
         
-        // Force eager loading
-        img.setAttribute('loading', 'eager');
+        // Keep lazy loading for slideshow images
+        if (!img.hasAttribute('loading')) {
+            img.setAttribute('loading', 'lazy');
+        }
         
         // Add a loaded class when the image is fully loaded
         preloadImg.onload = () => {
@@ -299,9 +370,17 @@ function renderChannelCard(channel) {
         const latestBlock = sortedBlocks[0];
         if (latestBlock.class === 'Image') {
             const latestImg = document.createElement('img');
-            latestImg.src = latestBlock.image.display.url;
+            latestImg.loading = 'lazy';
             latestImg.alt = latestBlock.title || channel.title;
-            latestImg.loading = 'eager'; // Load the cover image immediately
+            // Use data-src for deferred loading
+            latestImg.dataset.src = latestBlock.image.display.url;
+            // Add a low-quality placeholder or blur effect while loading
+            latestImg.style.filter = 'blur(5px)';
+            latestImg.onload = () => {
+                latestImg.style.filter = 'none';
+                latestImg.classList.add('loaded');
+            };
+            imageObserver.observe(latestImg);
             latestBlockDiv.appendChild(latestImg);
         } else if (latestBlock.class === 'Text') {
             latestBlockDiv.className = 'channel-card-text';
@@ -325,9 +404,17 @@ function renderChannelCard(channel) {
             imageDiv.className = 'channel-card-image';
             
             const img = document.createElement('img');
-            img.src = olderImageBlocks[i].image.display.url;
-            img.alt = olderImageBlocks[i].title || `${channel.title} image ${i + 1}`;
             img.loading = 'lazy';
+            img.alt = olderImageBlocks[i].title || `${channel.title} image ${i + 1}`;
+            // Use data-src for deferred loading
+            img.dataset.src = olderImageBlocks[i].image.display.url;
+            // Add a low-quality placeholder or blur effect while loading
+            img.style.filter = 'blur(5px)';
+            img.onload = () => {
+                img.style.filter = 'none';
+                img.classList.add('loaded');
+            };
+            imageObserver.observe(img);
             
             imageDiv.appendChild(img);
             imagesContainer.appendChild(imageDiv);

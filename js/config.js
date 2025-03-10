@@ -15,14 +15,50 @@
 
 const CHANNELS_CONFIG = [
     {
-        title: "Mind of the Machine",
-        slug: "mind-of-the-machine",
-        description: "Exploring artificial intelligence and machine learning concepts."
+        title: "It's a Vibe",
+        slug: "it-s-a-vibe",
+        description: "Collection of vibes and aesthetic inspirations.",
+        length: 0,
+        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075925/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg",
+        sampleImages: [
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075926/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075927/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075928/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg"
+        ]
+    },
+    {
+        title: "Accidental Baroque",
+        slug: "accidental-baroque",
+        description: "a collection of accidental baroque"
+    },
+    {
+        title: "Interior 2030",
+        slug: "interior-2030",
+        description: "What I think is good living in a house",
+        length: 0,
+        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075921/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg",
+        sampleImages: [
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075922/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075923/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075924/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg"
+        ]
     },
     {
         title: "Business Cards",
         slug: "business-cards-gk-eigsa-4s",
         description: "Collection of business card designs and inspiration."
+    },
+    {
+        title: "Photography",
+        slug: "photography-o9r85qh8qv8",
+        description: "Curated collection of inspiring photography.",
+        length: 0,
+        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075941/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
+        sampleImages: [
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075942/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075943/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075944/original_a1eb1a0e7eef55d5c5b13e70a9e3ffe7.jpg"
+        ]
     },
     {
         title: "Football is Life",
@@ -33,6 +69,18 @@ const CHANNELS_CONFIG = [
         title: "Words",
         slug: "words-igfvslsuyr0",
         description: "A collection of meaningful words and phrases."
+    },
+    {
+        title: "Graphic",
+        slug: "graphic-03cnlqdnkyy",
+        description: "Graphic design inspiration and visual concepts.",
+        length: 0,
+        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075945/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg",
+        sampleImages: [
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075946/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075947/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
+            "https://d2w9rnfcy7mm78.cloudfront.net/11075948/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg"
+        ]
     },
     {
         title: "Sustainable UX",
@@ -53,6 +101,11 @@ const CHANNELS_CONFIG = [
         title: "Photography Campaign",
         slug: "photography-campaign-gbdhtdhgmhc",
         description: "Visual storytelling through photography campaigns."
+    },
+    {
+        title: "Mind of the Machine",
+        slug: "mind-of-the-machine",
+        description: "Exploring artificial intelligence and machine learning concepts."
     },
     {
         title: "Artificial Complexity",
@@ -115,30 +168,6 @@ const CHANNELS_CONFIG = [
         ]
     },
     {
-        title: "Interior 2030",
-        slug: "interior-2030",
-        description: "What I think is good living in a house",
-        length: 0,
-        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075921/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg",
-        sampleImages: [
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075922/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075923/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075924/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg"
-        ]
-    },
-    {
-        title: "It's a Vibe",
-        slug: "it-s-a-vibe",
-        description: "Collection of vibes and aesthetic inspirations.",
-        length: 0,
-        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075925/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg",
-        sampleImages: [
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075926/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075927/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075928/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg"
-        ]
-    },
-    {
         title: "The Good Days",
         slug: "the-good-days",
         description: "Moments and memories of good days.",
@@ -172,30 +201,6 @@ const CHANNELS_CONFIG = [
             "https://d2w9rnfcy7mm78.cloudfront.net/11075938/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg",
             "https://d2w9rnfcy7mm78.cloudfront.net/11075939/original_a1eb1a0e7eef55d5c5b13e70a9e3ffe7.jpg",
             "https://d2w9rnfcy7mm78.cloudfront.net/11075940/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg"
-        ]
-    },
-    {
-        title: "Photography",
-        slug: "photography-o9r85qh8qv8",
-        description: "Curated collection of inspiring photography.",
-        length: 0,
-        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075941/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
-        sampleImages: [
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075942/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075943/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075944/original_a1eb1a0e7eef55d5c5b13e70a9e3ffe7.jpg"
-        ]
-    },
-    {
-        title: "Graphic",
-        slug: "graphic-03cnlqdnkyy",
-        description: "Graphic design inspiration and visual concepts.",
-        length: 0,
-        sampleImage: "https://d2w9rnfcy7mm78.cloudfront.net/11075945/original_b5e0b5e0b5e0b5e0b5e0b5e0b5e0b5e0.jpg",
-        sampleImages: [
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075946/original_c5b13e70a9e3ffe7a1eb1a0e7eef55d5.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075947/original_d8b5e0042c3bfbcb3c9e773e248e0622.jpg",
-            "https://d2w9rnfcy7mm78.cloudfront.net/11075948/original_9d1b6b2d5b5e7d58a22216d9c7b1f7a9.jpg"
         ]
     }
 ];

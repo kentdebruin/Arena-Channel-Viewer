@@ -1,3 +1,5 @@
+import { getYouTubeVideoId } from './youtube.js';
+
 // State management
 const state = {
     currentPage: 1,
@@ -11,8 +13,12 @@ const state = {
     isLoading: false,
     newestBlockId: null,
     pollingInterval: null,
-    POLLING_DELAY: 30000 // 30 seconds
+    POLLING_DELAY: 30000, // 30 seconds
+    loadingMore: false // New state to track if we're loading more blocks
 };
+
+// Expose state to window for other scripts
+window.state = state;
 
 // DOM Elements
 const elements = {
@@ -21,13 +27,12 @@ const elements = {
     loading: document.getElementById('loading'),
     error: document.getElementById('error'),
     channelInfo: document.getElementById('channelInfo'),
-    channelTitle: document.getElementById('channelTitle'),
     channelDescription: document.getElementById('channelDescription'),
     blocksGrid: document.getElementById('blocksGrid'),
     blocksDiary: document.getElementById('blocksDiary'),
     gridViewBtn: document.getElementById('gridViewBtn'),
     diaryViewBtn: document.getElementById('diaryViewBtn'),
-    modal: document.querySelector('.modal'),
+    modal: document.getElementById('blockModal'),
     modalBody: document.querySelector('.modal-body'),
     modalClose: document.querySelector('.modal-close'),
     modalPrev: document.querySelector('.modal-prev'),
@@ -44,11 +49,12 @@ const elements = {
 // API endpoints
 const API = {
     baseUrl: 'https://api.are.na/v2',
-    channel: (slug) => `${API.baseUrl}/channels/${slug}`,
-    blocks: (slug, page, perPage) => 
-        `${API.baseUrl}/channels/${slug}/contents?page=${page}&per=${perPage}&sort=connected_at&direction=desc`,
-    latestBlock: (slug) => 
-        `${API.baseUrl}/channels/${slug}/contents?per=1&sort=connected_at&direction=desc`
+    channelInfo: (slug) => `${API.baseUrl}/channels/${slug}`,
+    channelContents: (slug, page = 1, per = 32) => 
+        `${API.baseUrl}/channels/${slug}/contents?page=${page}&per=${per}&sort=position&direction=desc`,
+    userChannels: (username) => `${API.baseUrl}/users/${username}/channels`,
+    maxRetries: 3,
+    retryDelay: 1000 // 1 second delay between retries
 };
 
 // Event Listeners
@@ -58,12 +64,6 @@ elements.channelInput.addEventListener('keypress', (e) => {
 });
 elements.gridViewBtn.addEventListener('click', () => switchView('grid'));
 elements.diaryViewBtn.addEventListener('click', () => switchView('diary'));
-elements.modalClose.addEventListener('click', closeModal);
-elements.modal.addEventListener('click', (e) => {
-    if (e.target === elements.modal) closeModal();
-});
-elements.modalPrev.addEventListener('click', () => navigateModal(-1));
-elements.modalNext.addEventListener('click', () => navigateModal(1));
 elements.fixedGridViewBtn.addEventListener('click', () => switchView('grid'));
 elements.fixedDiaryViewBtn.addEventListener('click', () => switchView('diary'));
 
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await handleSearch();
         } else {
             // Otherwise, try to fetch the default channel
-            const response = await fetch(API.channel(state.defaultChannel));
+            const response = await fetch(API.channelInfo(state.defaultChannel));
             if (!response.ok) {
                 throw new Error('Default channel not found');
             }
@@ -98,15 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Add keyboard navigation
-document.addEventListener('keydown', (e) => {
-    if (!elements.modal.classList.contains('hidden')) {
-        if (e.key === 'Escape') closeModal();
-        if (e.key === 'ArrowLeft') navigateModal(-1);
-        if (e.key === 'ArrowRight') navigateModal(1);
-    }
-});
-
 // Add scroll handler for fixed header
 window.addEventListener('scroll', () => {
     const scrollPosition = window.scrollY;
@@ -121,7 +112,146 @@ window.addEventListener('scroll', () => {
     }
 });
 
-// Load initial content
+// Initialize infinite scroll observer
+const infiniteScrollObserver = new IntersectionObserver(
+    (entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !state.loadingMore && state.hasMore) {
+                loadMoreBlocks();
+            }
+        });
+    },
+    {
+        rootMargin: '100px',
+        threshold: 0.1
+    }
+);
+
+// Load more blocks when scrolling
+async function loadMoreBlocks() {
+    if (state.loadingMore || !state.hasMore) return;
+    
+    state.loadingMore = true;
+    state.currentPage++;
+    
+    try {
+        // Add loading indicator
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-more';
+        loadingIndicator.textContent = 'Loading more...';
+        const container = state.currentView === 'grid' ? elements.blocksGrid : elements.blocksDiary;
+        container.appendChild(loadingIndicator);
+
+        const response = await fetch(`https://api.are.na/v2/channels/${state.currentChannel}/contents?page=${state.currentPage}&per=${state.perPage}&sort=position&direction=desc`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch more blocks');
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.contents && data.contents.length > 0) {
+            // Add new blocks to state
+            state.currentBlocks = [...state.currentBlocks, ...data.contents];
+            
+            // Remove loading indicator
+            loadingIndicator.remove();
+            
+            // Render new blocks
+            renderBlocks(data.contents, true);
+            
+            // Update hasMore based on whether we got a full page of results
+            state.hasMore = data.contents.length === state.perPage;
+            
+            // Add infinite scroll trigger if there might be more blocks
+            if (state.hasMore) {
+                addInfiniteScrollTrigger();
+            }
+        } else {
+            state.hasMore = false;
+            removeInfiniteScrollTrigger();
+        }
+    } catch (error) {
+        console.error('Error loading more blocks:', error);
+        state.hasMore = false;
+        removeInfiniteScrollTrigger();
+    } finally {
+        state.loadingMore = false;
+        // Remove loading indicator if it still exists
+        const loadingIndicator = document.querySelector('.loading-more');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+    }
+}
+
+// Add infinite scroll trigger element
+function addInfiniteScrollTrigger() {
+    removeInfiniteScrollTrigger(); // Remove existing trigger if any
+    
+    const trigger = document.createElement('div');
+    trigger.className = 'infinite-scroll-trigger';
+    trigger.style.height = '1px';
+    trigger.style.width = '100%';
+    
+    if (state.currentView === 'grid') {
+        elements.blocksGrid.appendChild(trigger);
+    } else {
+        elements.blocksDiary.appendChild(trigger);
+    }
+    
+    infiniteScrollObserver.observe(trigger);
+}
+
+// Remove infinite scroll trigger
+function removeInfiniteScrollTrigger() {
+    const existingTrigger = document.querySelector('.infinite-scroll-trigger');
+    if (existingTrigger) {
+        infiniteScrollObserver.unobserve(existingTrigger);
+        existingTrigger.remove();
+    }
+}
+
+// Enhanced fetch with retry mechanism
+async function fetchWithRetry(url, retries = API.maxRetries) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url);
+            
+            // Log rate limit information
+            const remaining = response.headers.get('X-RateLimit-Remaining');
+            const limit = response.headers.get('X-RateLimit-Limit');
+            if (remaining && limit) {
+                console.log(`Are.na API Rate Limit: ${remaining}/${limit} remaining`);
+            }
+
+            if (response.status === 429) { // Rate limited
+                const retryAfter = response.headers.get('Retry-After') || API.retryDelay;
+                console.warn(`Rate limited. Waiting ${retryAfter}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter));
+                continue;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            const isLastAttempt = i === retries - 1;
+            if (isLastAttempt) {
+                console.error(`Failed to fetch after ${retries} attempts:`, error);
+                throw error;
+            } else {
+                console.warn(`Attempt ${i + 1} failed, retrying in ${API.retryDelay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, API.retryDelay));
+            }
+        }
+    }
+}
+
+// Modify loadInitialContent to support pagination
 async function loadInitialContent() {
     try {
         // Show loading blocks
@@ -139,49 +269,89 @@ async function loadInitialContent() {
             loadingBlocks.forEach(block => elements.blocksGrid.appendChild(block));
         }
 
-        // Try to get cached blocks first
-        const cachedBlocks = BlockCache.getCachedBlocks(state.currentChannel);
-        if (cachedBlocks) {
-            // Render cached blocks immediately
-            state.currentBlocks = cachedBlocks;
-            renderBlocks(cachedBlocks, false);
-        }
+        // Reset pagination state
+        state.currentPage = 1;
+        state.hasMore = true;
+        state.currentBlocks = [];
 
-        // Fetch fresh blocks
-        const response = await fetch(
-            API.blocks(state.currentChannel, state.currentPage, state.perPage)
-        );
-        
-        if (!response.ok) {
-            throw new Error('Failed to load content');
-        }
+        try {
+            // Fetch fresh blocks
+            const data = await fetchWithRetry(
+                API.channelContents(state.currentChannel, state.currentPage, state.perPage)
+            );
+            
+            if (!data || !data.contents) {
+                throw new Error('Invalid response from API');
+            }
 
-        const data = await response.json();
-        if (data.contents && Array.isArray(data.contents)) {
+            // Update state
             state.currentBlocks = data.contents;
             state.hasMore = data.contents.length === state.perPage;
             
-            // Update newestBlockId
-            if (data.contents.length > 0) {
-                state.newestBlockId = data.contents[0].id;
+            // Clear loading blocks
+            if (state.currentView === 'grid') {
+                elements.blocksGrid.innerHTML = '';
+            } else {
+                elements.blocksDiary.innerHTML = '';
+            }
+            
+            // Render blocks
+            renderBlocks(state.currentBlocks, false);
+            
+            // Add infinite scroll trigger if there might be more blocks
+            if (state.hasMore) {
+                addInfiniteScrollTrigger();
             }
             
             // Cache the blocks
-            await BlockCache.cacheBlocks(state.currentChannel, data.contents);
+            BlockCache.cacheBlocks(state.currentChannel, state.currentBlocks);
             
-            // Clear loading blocks before rendering actual content
-            if (state.currentView === 'grid') {
-                elements.blocksGrid.innerHTML = '';
+            // Hide any existing error messages
+            hideError();
+            
+        } catch (error) {
+            console.error('Error fetching content:', error);
+            // Try to get cached blocks as fallback
+            const cachedBlocks = BlockCache.getCachedBlocks(state.currentChannel);
+            if (cachedBlocks) {
+                // If we have cached blocks, show them but with a warning
+                state.currentBlocks = cachedBlocks;
+                renderBlocks(cachedBlocks, false);
+                showError('Using cached content - some items may be outdated');
+            } else {
+                throw new Error('Failed to load content');
             }
-            renderBlocks(data.contents, false);
-
-            // Start polling for new blocks
-            startPolling();
         }
-
+        
     } catch (error) {
-        showError(error.message);
+        console.error('Error in loadInitialContent:', error);
+        elements.blocksGrid.innerHTML = '';
+        elements.blocksDiary.innerHTML = '';
+        showError('Failed to load content. Please try again later.');
+    } finally {
+        // Remove loading blocks if they still exist
+        const existingLoadingBlocks = document.querySelectorAll('.block-container.loading');
+        existingLoadingBlocks.forEach(block => block.remove());
     }
+}
+
+// Modify renderBlocks to support appending
+function renderBlocks(blocks, append = false) {
+    const container = state.currentView === 'grid' ? elements.blocksGrid : elements.blocksDiary;
+    
+    if (!append) {
+        container.innerHTML = '';
+    }
+    
+    blocks.forEach(block => {
+        const blockElement = createBlockElement(block);
+        if (blockElement) {
+            container.appendChild(blockElement);
+        }
+    });
+    
+    // Reinitialize observers for new blocks
+    initializeBlockObservers();
 }
 
 // Check for new blocks
@@ -314,193 +484,50 @@ async function handleSearch() {
 
 // Fetch channel information
 async function fetchChannel(slug) {
-    const response = await fetch(API.channel(slug));
+    const response = await fetch(API.channelInfo(slug));
     if (!response.ok) {
         throw new Error('Channel not found');
     }
     return response.json();
 }
 
-// Render blocks based on current view
-function renderBlocks(blocks, isAppending = false) {
-    if (state.currentView === 'grid') {
-        renderGridView(blocks, isAppending);
-    } else {
-        renderDiaryView(blocks, isAppending);
-    }
-}
-
-// Grid view rendering
-function renderGridView(blocks, isAppending = false) {
-    // Sort blocks by connected_at in descending order (newest first)
-    const sortedBlocks = [...blocks].sort((a, b) => 
-        new Date(b.connected_at) - new Date(a.connected_at)
-    );
+// Initialize observers for lazy loading images in blocks
+function initializeBlockObservers() {
+    const blockImages = document.querySelectorAll('.block img');
     
-    if (!isAppending) {
-        elements.blocksGrid.innerHTML = '';
-    }
-    
-    sortedBlocks.forEach(block => {
-        const blockElement = createBlockElement(block);
-        elements.blocksGrid.appendChild(blockElement);
-    });
-}
-
-// Diary view rendering
-function renderDiaryView(blocks, isAppending = false) {
-    state.currentBlocks = blocks;
-    const blocksByDate = groupBlocksByDate(blocks);
-    
-    // Sort dates in descending order (newest first)
-    const sortedDates = Object.keys(blocksByDate).sort((a, b) => b.localeCompare(a));
-    
-    if (!isAppending) {
-        elements.blocksDiary.innerHTML = '';
-    }
-    
-    sortedDates.forEach(date => {
-        const dateSection = document.createElement('div');
-        dateSection.className = 'diary-date';
-        dateSection.textContent = formatDate(date);
-        elements.blocksDiary.appendChild(dateSection);
-
-        // Sort blocks within each date by connected_at in descending order
-        const sortedBlocks = blocksByDate[date].sort((a, b) => 
-            new Date(b.connected_at) - new Date(a.connected_at)
-        );
-
-        sortedBlocks.forEach(block => {
-            const diaryBlock = createDiaryBlockElement(block);
-            elements.blocksDiary.appendChild(diaryBlock);
+    // Create a new intersection observer
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                if (img.dataset.src) {
+                    // Set the actual image source
+                    img.src = img.dataset.src;
+                    delete img.dataset.src;
+                    
+                    // Add loaded class when the image is fully loaded
+                    img.onload = () => {
+                        img.classList.add('loaded');
+                    };
+                }
+                observer.unobserve(img);
+            }
         });
+    }, {
+        rootMargin: '50px 0px', // Start loading images 50px before they enter the viewport
+        threshold: 0.1
     });
-}
-
-// Group blocks by date
-function groupBlocksByDate(blocks) {
-    return blocks.reduce((groups, block) => {
-        const date = block.connected_at.split('T')[0];
-        if (!groups[date]) {
-            groups[date] = [];
-        }
-        groups[date].push(block);
-        return groups;
-    }, {});
-}
-
-// Create diary block element
-function createDiaryBlockElement(block) {
-    const diaryBlock = document.createElement('div');
-    diaryBlock.className = 'diary-block';
-    diaryBlock.addEventListener('click', () => openModal(block, state.currentBlocks.findIndex(b => b.id === block.id)));
-
-    let content = '';
     
-    // Add image section if it's an image block
-    if (block.class === 'Image' && block.image && block.image.display && block.image.display.url) {
-        content += `
-            <div class="diary-block-image">
-                <img src="${block.image.display.url}" alt="${block.title || 'Image block'}">
-            </div>
-        `;
-    }
-
-    content += `
-        <div class="diary-block-content">
-            <div class="diary-block-header">
-                ${block.title ? `<h3 class="diary-block-title">${block.title}</h3>` : ''}
-                <time class="diary-block-time">${formatTime(block.connected_at)}</time>
-            </div>
-    `;
-
-    switch (block.class) {
-        case 'Text':
-            content += `<p class="block-text">${block.content}</p>`;
-            break;
-        case 'Link':
-            content += `
-                <a href="${block.source.url}" target="_blank" class="block-link">
-                    ${block.source.url}
-                </a>
-                ${block.description ? `<p class="block-text">${block.description}</p>` : ''}
-            `;
-            break;
-    }
-
-    content += '</div>';
-    diaryBlock.innerHTML = content;
-    return diaryBlock;
-}
-
-// Date formatting helper
-function formatDate(dateStr) {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+    // Observe all block images
+    blockImages.forEach(img => {
+        // Only observe images that haven't been loaded yet
+        if (!img.classList.contains('loaded')) {
+            imageObserver.observe(img);
+        }
     });
 }
 
-// Time formatting helper
-function formatTime(dateStr) {
-    return new Date(dateStr).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-// Helper function to extract YouTube video ID from URL
-function getYouTubeVideoId(url) {
-    try {
-        // Log the URL we're trying to parse
-        console.log('Trying to parse YouTube URL:', url);
-        
-        const urlObj = new URL(url);
-        console.log('URL parsed as:', urlObj.toString());
-        console.log('Hostname:', urlObj.hostname);
-        
-        // Handle youtu.be format
-        if (urlObj.hostname === 'youtu.be') {
-            const id = urlObj.pathname.slice(1);
-            console.log('youtu.be format, extracted ID:', id);
-            return id;
-        }
-        
-        // Handle youtube.com formats
-        if (urlObj.hostname === 'www.youtube.com' || urlObj.hostname === 'youtube.com' || urlObj.hostname === 'm.youtube.com') {
-            // Handle standard watch URLs
-            if (urlObj.pathname === '/watch') {
-                const id = new URLSearchParams(urlObj.search).get('v');
-                console.log('youtube.com/watch format, extracted ID:', id);
-                return id;
-            }
-            
-            // Handle shortened /v/ URLs
-            if (urlObj.pathname.startsWith('/v/')) {
-                const id = urlObj.pathname.split('/v/')[1];
-                console.log('youtube.com/v/ format, extracted ID:', id);
-                return id;
-            }
-            
-            // Handle embed URLs
-            if (urlObj.pathname.startsWith('/embed/')) {
-                const id = urlObj.pathname.split('/embed/')[1];
-                console.log('youtube.com/embed/ format, extracted ID:', id);
-                return id;
-            }
-        }
-        
-        console.log('No YouTube video ID found in URL');
-        return null;
-    } catch (e) {
-        console.error('Error parsing YouTube URL:', e);
-        return null;
-    }
-}
-
-// Create block element based on type
+// Modify createBlockElement to use data-src for lazy loading
 function createBlockElement(block) {
     const container = document.createElement('div');
     container.className = 'block-container';
@@ -511,7 +538,10 @@ function createBlockElement(block) {
     switch (block.class) {
         case 'Image':
             if (block.image && block.image.display && block.image.display.url) {
-                element.innerHTML = `<img src="${block.image.display.url}" alt="${block.title || 'Image block'}">`;
+                const img = document.createElement('img');
+                img.dataset.src = block.image.display.url;
+                img.alt = block.title || 'Image block';
+                element.appendChild(img);
             } else {
                 element.innerHTML = `
                     <div class="block-content">
@@ -538,26 +568,18 @@ function createBlockElement(block) {
             break;
             
         case 'Link':
-            // Log the link block for debugging
-            console.log('Processing Link block:', {
-                title: block.title,
-                url: block.source?.url,
-                description: block.description
-            });
-            
             // Check if it's a YouTube link
             const linkYTId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
             if (linkYTId) {
-                console.log('Found YouTube ID:', linkYTId);
-                // Show YouTube thumbnail as a regular image
-                element.innerHTML = `
-                    <img src="https://img.youtube.com/vi/${linkYTId}/maxresdefault.jpg" 
-                         alt="${block.title || 'YouTube video'}"
-                         onerror="this.onerror=null; this.src='https://img.youtube.com/vi/${linkYTId}/hqdefault.jpg';">
-                `;
+                const img = document.createElement('img');
+                img.dataset.src = `https://img.youtube.com/vi/${linkYTId}/maxresdefault.jpg`;
+                img.alt = block.title || 'YouTube video';
+                img.onerror = function() {
+                    this.onerror = null;
+                    this.dataset.src = `https://img.youtube.com/vi/${linkYTId}/hqdefault.jpg`;
+                };
+                element.appendChild(img);
             } else {
-                console.log('Not a YouTube link, rendering as regular link');
-                // Regular link handling
                 element.innerHTML = `
                     <div class="block-content">
                         <div class="block-link-container">
@@ -584,29 +606,31 @@ function createBlockElement(block) {
             break;
 
         case 'Media':
-            // Log the media block for debugging
-            console.log('Processing Media block:', {
-                title: block.title,
-                url: block.source?.url,
-                description: block.description
-            });
-            
-            // Check if it's a YouTube link
             const mediaYTId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
             if (mediaYTId) {
-                console.log('Found YouTube ID:', mediaYTId);
-                // Show YouTube thumbnail with play button overlay
-                element.innerHTML = `
-                    <img src="https://img.youtube.com/vi/${mediaYTId}/maxresdefault.jpg" 
-                         alt="${block.title || 'YouTube video'}"
-                         onerror="this.onerror=null; this.src='https://img.youtube.com/vi/${mediaYTId}/hqdefault.jpg';">
-                    <div class="youtube-overlay">
-                        <span class="material-icons">play_circle</span>
-                    </div>
-                `;
+                const imgContainer = document.createElement('div');
+                imgContainer.style.position = 'relative';
+                
+                const img = document.createElement('img');
+                img.dataset.src = `https://img.youtube.com/vi/${mediaYTId}/maxresdefault.jpg`;
+                img.alt = block.title || 'YouTube video';
+                img.onerror = function() {
+                    this.onerror = null;
+                    this.dataset.src = `https://img.youtube.com/vi/${mediaYTId}/hqdefault.jpg`;
+                };
+                
+                const overlay = document.createElement('div');
+                overlay.className = 'youtube-overlay';
+                const playIcon = document.createElement('span');
+                playIcon.className = 'material-icons';
+                playIcon.textContent = 'play_circle';
+                overlay.appendChild(playIcon);
+                
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(overlay);
+                element.appendChild(imgContainer);
                 element.classList.add('youtube-block');
             } else {
-                // Handle other media types or show unsupported message
                 element.innerHTML = `
                     <div class="block-content">
                         <p class="block-text">Unsupported media type</p>
@@ -625,10 +649,13 @@ function createBlockElement(block) {
 
     element.addEventListener('click', () => {
         const index = state.currentBlocks.findIndex(b => b.id === block.id);
-        openModal(block, index);
+        if (typeof window.modalFunctions !== 'undefined' && typeof window.modalFunctions.openModal === 'function') {
+            window.modalFunctions.openModal(index);
+        } else {
+            console.error('Modal functions not available');
+        }
     });
     
-    // Add title below the block if it exists
     if (block.title) {
         const titleDiv = document.createElement('div');
         titleDiv.className = 'block-title';
@@ -644,24 +671,18 @@ function createBlockElement(block) {
 function updateChannelInfo(channel) {
     const blockCount = channel.length || 0;
     const blockCountText = `<span class="block-count">${blockCount}</span>`;
-    
-    // Add both the title and the Are.na link
-    elements.channelTitle.innerHTML = `
-        ${channel.title} 
-        ${blockCountText}
-        <a href="https://www.are.na/channel/${channel.slug}" 
+    const arenaLink = `<a href="https://www.are.na/channel/${channel.slug}" 
            class="arena-link" 
            target="_blank" 
            title="View on Are.na"
            rel="noopener noreferrer">
            <span class="material-icons">open_in_new</span>
-        </a>
-    `;
+        </a>`;
     
-    // Update breadcrumb and fixed header title
-    elements.currentChannel.textContent = channel.title;
-    elements.fixedChannelTitle.textContent = channel.title;
-    elements.breadcrumb.classList.remove('hidden');
+    // Update both main and fixed header breadcrumbs
+    const breadcrumbContent = `${channel.title} ${blockCountText} ${arenaLink}`;
+    elements.currentChannel.innerHTML = breadcrumbContent;
+    elements.fixedChannelTitle.innerHTML = breadcrumbContent;
     
     if (channel.description) {
         elements.channelDescription.textContent = channel.description;
@@ -692,216 +713,6 @@ function hideError() {
     elements.error.classList.add('hidden');
 }
 
-// Modal functions
-function openModal(block, index) {
-    state.currentModalIndex = index;
-    elements.modalBody.innerHTML = '';
-    elements.modalBody.appendChild(createModalContent(block));
-    elements.modal.classList.remove('hidden');
-    updateNavigationButtons();
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-    elements.modal.classList.add('hidden');
-    state.currentModalIndex = -1;
-    document.body.style.overflow = '';
-}
-
-async function navigateModal(direction) {
-    const newIndex = state.currentModalIndex + direction;
-    
-    // If we're moving forward and approaching the end of loaded blocks, try to load more
-    if (direction > 0 && state.hasMore && newIndex >= state.currentBlocks.length - 3) {
-        try {
-            state.isLoading = true;
-            state.currentPage++;
-            
-            // Show loading state in modal
-            const loadingIndicator = document.createElement('div');
-            loadingIndicator.className = 'modal-loading';
-            loadingIndicator.innerHTML = `
-                <div class="block-container loading">
-                    <div class="block"></div>
-                </div>
-            `;
-            elements.modalBody.appendChild(loadingIndicator);
-            
-            const response = await fetch(
-                API.blocks(state.currentChannel, state.currentPage, state.perPage)
-            );
-            
-            if (!response.ok) {
-                throw new Error('Failed to load more blocks');
-            }
-
-            const data = await response.json();
-            if (data.contents && Array.isArray(data.contents)) {
-                if (data.contents.length === 0) {
-                    state.hasMore = false;
-                } else {
-                    state.currentBlocks = [...state.currentBlocks, ...data.contents];
-                    state.hasMore = data.contents.length === state.perPage;
-                }
-            }
-        } catch (error) {
-            console.error('Error loading more blocks:', error);
-            state.hasMore = false;
-        } finally {
-            state.isLoading = false;
-            // Remove loading indicator
-            const loadingIndicator = elements.modalBody.querySelector('.modal-loading');
-            if (loadingIndicator) {
-                loadingIndicator.remove();
-            }
-        }
-    }
-
-    // Now try to navigate to the new index
-    if (newIndex >= 0 && newIndex < state.currentBlocks.length) {
-        openModal(state.currentBlocks[newIndex], newIndex);
-    }
-}
-
-function updateNavigationButtons() {
-    const hasPrev = state.currentModalIndex > 0;
-    // Show next button if we're not at the end or if there are more blocks to load
-    const hasNext = state.currentModalIndex < state.currentBlocks.length - 1 || state.hasMore;
-    
-    elements.modalPrev.classList.toggle('hidden', !hasPrev);
-    elements.modalNext.classList.toggle('hidden', !hasNext);
-}
-
-function createModalContent(block) {
-    const container = document.createElement('div');
-    const content = document.createElement('div');
-    content.className = 'modal-block-content';
-    
-    // Update header content
-    const headerTitle = document.querySelector('.modal-header-title');
-    const headerDate = document.querySelector('.modal-header-date');
-    
-    if (headerTitle) {
-        // Create a link to the Are.na block
-        headerTitle.innerHTML = `
-            <a href="https://www.are.na/block/${block.id}" 
-               target="_blank" 
-               class="block-title-link">
-                ${block.title || 'Untitled'}
-            </a>
-        `;
-    }
-    
-    if (headerDate) {
-        headerDate.textContent = block.connected_at ? 
-            `${formatDate(block.connected_at)} at ${formatTime(block.connected_at)}` : '';
-    }
-    
-    // Add content based on block type
-    switch (block.class) {
-        case 'Image':
-            if (block.image && block.image.display && block.image.display.url) {
-                content.classList.add('is-image');
-                const img = document.createElement('img');
-                img.src = block.image.display.url;
-                img.alt = block.title || 'Image';
-                content.appendChild(img);
-            } else {
-                const errorText = document.createElement('p');
-                errorText.textContent = 'Image unavailable';
-                content.appendChild(errorText);
-            }
-            break;
-            
-        case 'Text':
-            const textContainer = document.createElement('div');
-            textContainer.className = 'modal-text-container';
-            textContainer.innerHTML = `<p>${block.content}</p>`;
-            content.appendChild(textContainer);
-            break;
-            
-        case 'Link':
-            const modalYTId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
-            if (modalYTId) {
-                content.classList.add('is-video');
-                // Create responsive video container
-                const videoContainer = document.createElement('div');
-                videoContainer.className = 'video-container';
-                // Add YouTube embed without autoplay
-                videoContainer.innerHTML = `
-                    <iframe 
-                        width="960" 
-                        height="540" 
-                        src="https://www.youtube.com/embed/${modalYTId}" 
-                        frameborder="0" 
-                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                    </iframe>
-                `;
-                content.appendChild(videoContainer);
-            } else {
-                const linkContainer = document.createElement('div');
-                linkContainer.className = 'modal-text-container';
-                linkContainer.innerHTML = `
-                    <a href="${block.source.url}" target="_blank" class="block-link">
-                        ${block.title || block.source.url}
-                    </a>
-                    ${block.description ? `<p>${block.description}</p>` : ''}
-                `;
-                content.appendChild(linkContainer);
-            }
-            break;
-
-        case 'Media':
-            const youtubeId = block.source?.url ? getYouTubeVideoId(block.source.url) : null;
-            if (youtubeId) {
-                content.classList.add('is-video');
-                // Create responsive video container
-                const videoContainer = document.createElement('div');
-                videoContainer.className = 'video-container';
-                // Add YouTube embed without autoplay
-                videoContainer.innerHTML = `
-                    <iframe 
-                        width="960" 
-                        height="540" 
-                        src="https://www.youtube.com/embed/${youtubeId}" 
-                        frameborder="0" 
-                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                    </iframe>
-                `;
-                content.appendChild(videoContainer);
-            } else {
-                const errorText = document.createElement('p');
-                errorText.textContent = 'Video unavailable';
-                content.appendChild(errorText);
-            }
-            break;
-    }
-    
-    container.appendChild(content);
-    return container;
-}
-
-// Extract channel slug from URL or return the slug itself
-function extractChannelSlug(input) {
-    try {
-        // Check if it's a URL
-        if (input.includes('are.na/')) {
-            const url = new URL(input.startsWith('http') ? input : `https://${input}`);
-            // Get the pathname and split it into parts
-            const parts = url.pathname.split('/').filter(part => part);
-            // The channel slug should be the last part
-            return parts[parts.length - 1];
-        }
-        // If not a URL, return the input as is
-        return input;
-    } catch (e) {
-        // If URL parsing fails, return the input as is
-        return input;
-    }
-}
-
 // View switching
 async function switchView(view) {
     state.currentView = view;
@@ -924,6 +735,25 @@ async function switchView(view) {
     state.hasMore = true;
     state.currentBlocks = [];
     await loadInitialContent();
+}
+
+// Extract channel slug from URL or return the slug itself
+function extractChannelSlug(input) {
+    try {
+        // Check if it's a URL
+        if (input.includes('are.na/')) {
+            const url = new URL(input.startsWith('http') ? input : `https://${input}`);
+            // Get the pathname and split it into parts
+            const parts = url.pathname.split('/').filter(part => part);
+            // The channel slug should be the last part
+            return parts[parts.length - 1];
+        }
+        // If not a URL, return the input as is
+        return input;
+    } catch (e) {
+        // If URL parsing fails, return the input as is
+        return input;
+    }
 }
 
 // Utility function for debouncing
