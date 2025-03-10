@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Channels</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/commandk.css">
     <!-- Add Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
@@ -16,10 +17,9 @@
                     <span class="breadcrumb-link overview-title">Channels</span>
                 </div>
             </div>
-            <div class="search-container">
-                <input type="text" id="channelInput" placeholder="Please enter an Are.na channel slug or URL to begin">
-                <button class="search-icon" id="searchButton">
-                    <span class="material-icons">arrow_forward</span>
+            <div class="header-right">
+                <button class="search-trigger" id="searchTrigger" title="Search channels (⌘K)">
+                    <span class="material-icons">search</span>
                 </button>
             </div>
         </header>
@@ -31,10 +31,9 @@
                     <span class="breadcrumb-link overview-title">Channels</span>
                 </div>
             </div>
-            <div class="search-container">
-                <input type="text" id="fixedChannelInput" placeholder="Please enter an Are.na channel slug or URL to begin">
-                <button class="search-icon" id="fixedSearchButton">
-                    <span class="material-icons">arrow_forward</span>
+            <div class="header-right">
+                <button class="search-trigger" id="fixedSearchTrigger" title="Search channels (⌘K)">
+                    <span class="material-icons">search</span>
                 </button>
             </div>
         </div>
@@ -46,16 +45,11 @@
             <!-- Error message container -->
             <div id="error" class="error hidden"></div>
             
-            <!-- Channels Overview Section -->
-            <div id="channelsOverview" class="channels-overview">
-                <div id="channelsGrid" class="channels-grid"></div>
-            </div>
+            <!-- Channel grid -->
+            <div id="channelsGrid" class="channels-grid"></div>
         </main>
     </div>
 
-    <!-- Load configuration first -->
-    <script src="js/config.js"></script>
-    <!-- Then load the main script -->
-    <script src="js/channels.js"></script>
+    <script type="module" src="js/channels.js"></script>
 </body>
 </html> 

@@ -13,7 +13,7 @@
  * - sampleImages: Array of additional image URLs for slideshow effect
  */
 
-const CHANNELS_CONFIG = [
+export const CHANNELS_CONFIG = [
     {
         title: "It's a Vibe",
         slug: "it-s-a-vibe",
@@ -206,6 +206,6 @@ const CHANNELS_CONFIG = [
 ];
 
 // Default user information
-const USER_CONFIG = {
+export const USER_CONFIG = {
     full_name: "Kent"
 }; 

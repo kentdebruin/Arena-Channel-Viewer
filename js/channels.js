@@ -1,3 +1,7 @@
+// Import the Command+K search and configuration
+import { CommandKSearch } from './commandk.js';
+import { CHANNELS_CONFIG, USER_CONFIG } from './config.js';
+
 // State management
 const state = {
     isLoading: false,
@@ -7,16 +11,19 @@ const state = {
     username: 'kent'
 };
 
+// Make state available globally for the Command+K search
+window.state = state;
+// Make CHANNELS_CONFIG available globally for offline fallback
+window.CHANNELS_CONFIG = CHANNELS_CONFIG;
+window.USER_CONFIG = USER_CONFIG;
+
 // DOM Elements
 const elements = {
     loading: document.getElementById('loading'),
     error: document.getElementById('error'),
     channelsGrid: document.getElementById('channelsGrid'),
-    channelInput: document.getElementById('channelInput'),
-    searchButton: document.getElementById('searchButton'),
-    fixedHeader: document.querySelector('.fixed-header'),
-    fixedChannelInput: document.getElementById('fixedChannelInput'),
-    fixedSearchButton: document.getElementById('fixedSearchButton'),
+    searchTrigger: document.getElementById('searchTrigger'),
+    fixedSearchTrigger: document.getElementById('fixedSearchTrigger'),
     main: document.querySelector('main')
 };
 
@@ -29,59 +36,12 @@ const API = {
     retryDelay: 1000 // 1 second delay between retries
 };
 
+// Initialize Command+K search
+const commandKSearch = new CommandKSearch();
+
 // Event Listeners
-elements.searchButton.addEventListener('click', handleSearch);
-elements.channelInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSearch();
-});
-
-// Add fixed header event listeners
-elements.fixedSearchButton.addEventListener('click', handleSearch);
-elements.fixedChannelInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSearch();
-});
-
-// Handle scroll events for fixed header
-let lastScrollY = 0;
-let ticking = false;
-
-window.addEventListener('scroll', () => {
-    if (!ticking) {
-        window.requestAnimationFrame(() => {
-            const currentScrollY = window.scrollY;
-            
-            // Show/hide fixed header based on scroll direction and position
-            if (currentScrollY > 100) {
-                if (currentScrollY > lastScrollY) {
-                    // Scrolling down
-                    elements.fixedHeader.classList.remove('visible');
-                    elements.main.classList.remove('fixed-header-visible');
-                } else {
-                    // Scrolling up
-                    elements.fixedHeader.classList.add('visible');
-                    elements.main.classList.add('fixed-header-visible');
-                }
-            } else {
-                elements.fixedHeader.classList.remove('visible');
-                elements.main.classList.remove('fixed-header-visible');
-            }
-            
-            lastScrollY = currentScrollY;
-            ticking = false;
-        });
-        
-        ticking = true;
-    }
-});
-
-// Sync input fields
-elements.channelInput.addEventListener('input', (e) => {
-    elements.fixedChannelInput.value = e.target.value;
-});
-
-elements.fixedChannelInput.addEventListener('input', (e) => {
-    elements.channelInput.value = e.target.value;
-});
+elements.searchTrigger.addEventListener('click', () => commandKSearch.open());
+elements.fixedSearchTrigger.addEventListener('click', () => commandKSearch.open());
 
 // Load channels on page load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -462,24 +422,6 @@ function renderChannelCard(channel) {
     });
 
     elements.channelsGrid.appendChild(card);
-}
-
-// Handle search form submission
-function handleSearch() {
-    const input = elements.channelInput.value.trim();
-    if (!input) return;
-    
-    // Extract slug from input (could be a URL or a slug)
-    let slug = input;
-    
-    // If it's a URL, extract the slug
-    if (input.includes('are.na')) {
-        const urlParts = input.split('/');
-        slug = urlParts[urlParts.length - 1];
-    }
-    
-    // Redirect to the channel viewer page with the channel slug
-    window.location.href = `channel.html?channel=${slug}`;
 }
 
 // Show loading indicator

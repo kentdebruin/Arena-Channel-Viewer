@@ -88,7 +88,7 @@ h1 {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 12px;
     margin-left: auto;
 }
 
@@ -1755,4 +1755,26 @@ main.fixed-header-visible {
     .modal-info-container {
         padding: 1.5rem;
     }
+}
+
+.search-trigger {
+    padding: 8px;
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--secondary-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.search-trigger:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.search-trigger .material-icons {
+    font-size: 20px;
 }
