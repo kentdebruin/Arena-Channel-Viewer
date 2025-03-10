@@ -25,20 +25,26 @@
 
         .about-text {
             font-size: 1rem;
-            line-height: 1.6;
+            line-height: 1.8;
             color: var(--text-color);
-            white-space: pre-wrap;
+            white-space: pre-line;
             margin-bottom: 2rem;
+        }
+
+        .about-text p {
+            margin-bottom: 1rem;
         }
 
         .section-title {
             font-size: 1.5rem;
-            margin-bottom: 1.5rem;
+            margin: 3rem 0 1.5rem;
             color: var(--text-color);
         }
 
         .career-item, .education-item {
             margin-bottom: 1.5rem;
+            padding-left: 1rem;
+            border-left: 2px solid var(--border-color);
         }
 
         .career-role, .education-degree {
@@ -59,17 +65,21 @@
         }
 
         .links-list li {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
 
         .links-list a {
             color: var(--link-color);
             text-decoration: none;
-            transition: color 0.2s ease;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .links-list a:hover {
             color: var(--link-hover);
+            transform: translateX(4px);
         }
 
         .footer {
@@ -78,6 +88,19 @@
             border-top: 1px solid var(--border-color);
             color: var(--secondary-text);
             font-size: 0.875rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer a {
+            color: inherit;
+            text-decoration: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .footer a:hover {
+            opacity: 0.7;
         }
 
         @media (max-width: 768px) {
@@ -92,27 +115,28 @@
         <h1 class="about-title">About</h1>
 
         <div class="about-section">
-            <p class="about-text">My name is Kent de Bruin.
-‍
+            <div class="about-text">
+My name is Kent de Bruin.
+
 I'm based in Amsterdam, but travel frequently.
-‍
+
 I am currently working on Futureland.
 
 I did projects in a variety of industries including personal computing, artificial intelligence (LLM's), architecture, furniture, government and housing.
 
 I work independently on photography projects, and hope to publish my work in book-form one day.
-‍
+
 Previously, I was the first designer at Sail, founding partner at Studio Kiri (acqui-hired), and co-founder at Acaboo (Sunset) and co-founder at Able (Sunset).
 
 I hold a MSc in Digital Design, and a BSc in Business Administration. I also studied Digital Innovation at Hyper Island.
-‍
+
 I love spending time on Are.na (@kent) researching all sorts of topics.
 
 I'm tall (200cm / 6ft7).
 
 I dj under the name SIXFOOTSEVEN. For my selections I dig from a variety of genres including progressive, techno, house, ambient, IDM, acid and 90s trance.
 
-I'm born on the middle day of the year (non-leap years).</p>
+I'm born on the middle day of the year (non-leap years).</div>
         </div>
 
         <div class="about-section">
@@ -181,15 +205,15 @@ I'm born on the middle day of the year (non-leap years).</p>
         <div class="about-section">
             <h2 class="section-title">Elsewhere</h2>
             <ul class="links-list">
-                <li><a href="mailto:hello@kentdebruin.com">Email</a></li>
-                <li><a href="https://www.are.na/kent">Are.na</a></li>
-                <li><a href="https://www.instagram.com/kentdebruin">Instagram</a></li>
-                <li><a href="https://twitter.com/kentdebruin">Twitter</a></li>
+                <li><a href="mailto:hello@kentdebruin.com">Email <span class="material-icons">arrow_forward</span></a></li>
+                <li><a href="https://www.are.na/kent">Are.na <span class="material-icons">arrow_forward</span></a></li>
+                <li><a href="https://www.instagram.com/kentdebruin">Instagram <span class="material-icons">arrow_forward</span></a></li>
+                <li><a href="https://twitter.com/kentdebruin">Twitter <span class="material-icons">arrow_forward</span></a></li>
             </ul>
         </div>
 
         <div class="footer">
-            <a href="index.html" style="color: inherit; text-decoration: none;">Back home</a>
+            <a href="index.html">← Back home</a>
             <p>2025, Kent de Bruin</p>
         </div>
     </div>
