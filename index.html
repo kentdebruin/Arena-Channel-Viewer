@@ -14,13 +14,11 @@
         }
 
         .landing-title {
-            font-size: 2rem;
             margin-bottom: 2rem;
             color: var(--text-color);
         }
 
         .landing-text {
-            font-size: 1rem;
             line-height: 1.8;
             color: var(--text-color);
             white-space: pre-line;
@@ -44,7 +42,6 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 1.1rem;
         }
 
         .nav-links a:hover {
@@ -60,6 +57,24 @@
             font-size: 0.875rem;
         }
 
+        .social-links {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-links a {
+            color: var(--secondary-text);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .social-links a:hover {
+            color: var(--link-color);
+        }
+
         @media (max-width: 768px) {
             .landing-container {
                 padding: 2rem 1rem;
@@ -71,9 +86,7 @@
     <div class="landing-container">
         <h1 class="landing-title">Kent de Bruin</h1>
         
-        <div class="landing-text">Kent de Bruin (200cm / 6ft7)
-
-Companies, design, and sensory media.
+        <div class="landing-text">Companies, design, and sensory media.
 
 Building Futureland.
 
@@ -83,18 +96,22 @@ Between Amsterdam & Toronto.</div>
             <li>
                 <a href="about.html">
                     About
-                    <span class="material-icons">arrow_forward</span>
                 </a>
             </li>
             <li>
                 <a href="channel-overview.html">
-                    Are.na Channel Viewer
-                    <span class="material-icons">arrow_forward</span>
+                    Research
                 </a>
             </li>
         </ul>
 
         <div class="footer">
+            <ul class="social-links">
+                <li><a href="mailto:hello@kentdebruin.com">Email</a></li>
+                <li><a href="https://www.are.na/kent">Are.na</a></li>
+                <li><a href="https://www.instagram.com/kentdebruin">Instagram</a></li>
+                <li><a href="https://twitter.com/kentdebruin">Twitter</a></li>
+            </ul>
             <p>2025, Kent de Bruin</p>
         </div>
     </div>
