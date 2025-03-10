@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kent de Bruin</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        .landing-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .landing-title {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: var(--text-color);
+        }
+
+        .landing-text {
+            font-size: 1rem;
+            line-height: 1.8;
+            color: var(--text-color);
+            white-space: pre-line;
+            margin-bottom: 2rem;
+        }
+
+        .nav-links {
+            list-style: none;
+            padding: 0;
+            margin: 3rem 0;
+        }
+
+        .nav-links li {
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-links a {
+            color: var(--link-color);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-links a:hover {
+            color: var(--link-hover);
+            transform: translateX(4px);
+        }
+
+        .footer {
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--secondary-text);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 768px) {
+            .landing-container {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <h1 class="landing-title">Kent de Bruin</h1>
+        
+        <div class="landing-text">Kent de Bruin (200cm / 6ft7)
+
+Companies, design, and sensory media.
+
+Building Futureland.
+
+Between Amsterdam & Toronto.</div>
+
+        <ul class="nav-links">
+            <li>
+                <a href="about.html">
+                    About
+                    <span class="material-icons">arrow_forward</span>
+                </a>
+            </li>
+            <li>
+                <a href="channel-overview.html">
+                    Are.na Channel Viewer
+                    <span class="material-icons">arrow_forward</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="footer">
+            <p>2025, Kent de Bruin</p>
+        </div>
+    </div>
+</body>
+</html> 
